@@ -227,19 +227,7 @@
   button.sidebar-user:hover { background: var(--hover); }
   .new-badge {
     font-size: 11px; font-weight: 600;
-    background: rgba(139,92,246,0.15); color: var(--accent);
+    background: var(--green-light); color: var(--green-dark);
     padding: 3px 10px; border-radius: 99px;
   }
-  .welcome-banner {
-    background: linear-gradient(135deg, rgba(139,92,246,0.12), rgba(6,182,212,0.08));
-    border-bottom: 1px solid var(--border);
-    padding: 12px 28px;
-  }
-  .welcome-inner {
-    display: flex; align-items: center; gap: 12px;
-    font-size: 13px; color: var(--text2);
-    max-width: 900px;
-  }
-  .welcome-inner strong { color: var(--text); }
-  .welcome-inner div { flex: 1; }
 </style>

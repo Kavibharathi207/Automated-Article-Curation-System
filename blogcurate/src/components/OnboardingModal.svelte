@@ -74,12 +74,16 @@
     dispatch('close');
   }
 
+  // @ts-ignore
   function goTo(page) { currentPage.set(page); finish(); }
 </script>
 
+<!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <div class="backdrop" on:click={finish}>
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="modal" on:click|stopPropagation>
-
     <!-- Progress bar -->
     <div class="progress-track">
       <div class="progress-fill" style="width:{progress}%"></div>

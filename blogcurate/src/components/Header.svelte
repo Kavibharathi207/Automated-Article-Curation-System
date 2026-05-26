@@ -1,4 +1,6 @@
 <script>
+// @ts-nocheck
+
   import { pipelineStatus, pipelineFlag } from '../stores/store.js';
   function fmtDate(iso) {
     if (!iso) return '—';

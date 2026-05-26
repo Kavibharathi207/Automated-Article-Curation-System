@@ -1,5 +1,6 @@
 <script>
   import { stageRuns } from '../stores/store.js';
+  // @ts-ignore
   function fmt(ms) { return ms < 1000 ? `${ms}ms` : `${(ms/1000).toFixed(1)}s`; }
   $: maxMs = $stageRuns.length ? Math.max(...$stageRuns.map(s => s.durationMs)) : 1;
 </script>

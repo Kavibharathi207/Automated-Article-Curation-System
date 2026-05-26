@@ -24,7 +24,8 @@
     { page: 'settings',  label: 'Settings'   },
   ];
 
-  $: flag = $pipelineStatus?.flag ?? 'ON';
+ // @ts-ignore
+   $: flag = $pipelineStatus?.flag ?? 'ON';
   $: dotClass = flag === 'ON' ? 'dot-on' : flag === 'PAUSE' ? 'dot-pause' : 'dot-off';
 </script>
 

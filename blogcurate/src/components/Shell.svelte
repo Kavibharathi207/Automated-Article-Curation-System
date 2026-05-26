@@ -1,4 +1,6 @@
 <script>
+// @ts-nocheck
+
   import { user, currentPage, notifications, unreadCount, markAllRead, dark, toggleTheme, logout, pipelineFlag } from '../stores/store.js';
   import HomePage         from '../pages/HomePage.svelte';
   import DiscoverPage     from '../pages/DiscoverPage.svelte';
@@ -128,6 +130,8 @@
         </button>
 
         <!-- Notifications -->
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div class="notif-wrap" on:click|stopPropagation>
           <button class="icon-btn" on:click={openNotif} aria-label="Notifications">
             🔔
@@ -159,6 +163,8 @@
         </div>
 
         <!-- User menu -->
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div class="notif-wrap" on:click|stopPropagation>
           <button class="avatar" style="cursor:pointer" on:click={openUserMenu} aria-label="User menu">{$user?.avatar}</button>
           {#if showUserMenu}

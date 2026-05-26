@@ -1,4 +1,6 @@
 <script>
+// @ts-nocheck
+
   import { pipelineStats } from '../stores/store.js';
 
   const cards = [

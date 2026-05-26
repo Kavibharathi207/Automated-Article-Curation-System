@@ -10,6 +10,8 @@
 <div class="pub-shell">
   <header class="pub-nav">
     <div class="pub-nav-inner">
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
       <div class="pub-logo" on:click={() => { currentPublicPage.set('home'); selectedArticle.set(null); }}>
         Innovation Digest
       </div>

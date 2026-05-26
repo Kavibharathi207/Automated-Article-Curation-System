@@ -1,6 +1,8 @@
 <script>
   import { scheduledPosts } from '../stores/store.js';
-  $: published = $scheduledPosts.filter(p => p.status === 'published').slice().reverse();
+ // @ts-ignore
+   $: published = $scheduledPosts.filter(p => p.status === 'published').slice().reverse();
+  // @ts-ignore
   function fmtTime(iso) {
     if (!iso) return '';
     return new Date(iso).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' });

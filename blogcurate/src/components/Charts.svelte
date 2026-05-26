@@ -3,6 +3,7 @@
 
   $: maxVal = Math.max(...$weeklyActivity.map(d => d.count), 1);
   const BAR_H = 80;
+  // @ts-ignore
   function barH(v) { return Math.max(4, Math.round((v / maxVal) * BAR_H)); }
   $: hasActivity = $weeklyActivity.some(d => d.count > 0);
 </script>

@@ -8,7 +8,7 @@
   $: stats = [
     { label: 'Scheduled',  page: 'scheduled',  value: $pipelineStats.scheduled,  color: 'var(--amber)',      bg: 'var(--amber-light)' },
     { label: 'Published',  page: 'published',  value: $pipelineStats.published,  color: 'var(--green)',      bg: 'var(--green-light)' },
-    { label: 'Interested', page: 'interested', value: $pipelineStats.interested, color: '#7C3AED',           bg: '#EDE9FE' },
+    { label: 'Interested', page: 'interested', value: $pipelineStats.interested, color: 'var(--text-black)', bg: 'var(--off-white)'   },
     { label: 'Rejected',   page: 'rejected',   value: $pipelineStats.rejected,   color: 'var(--red)',        bg: 'var(--red-light)'   },
   ];
 
@@ -88,7 +88,7 @@
       {:else}
         <div class="queue-list">
           {#each [...$scheduledPosts].reverse().slice(0,5) as item}
-            <div class="queue-row" on:click={() => currentPage.set(item.status === 'published' ? 'published' : 'scheduled')}>
+            <button class="queue-row" on:click={() => currentPage.set(item.status === 'published' ? 'published' : 'scheduled')}>
               <span class="q-dot {item.status}"></span>
               <div class="q-body">
                 <div class="q-title">{item.title}</div>
@@ -99,7 +99,7 @@
                 </div>
               </div>
               <span class="q-category">{item.category}</span>
-            </div>
+            </button>
           {/each}
         </div>
         {#if $scheduledPosts.length > 5}
@@ -128,14 +128,14 @@
       {:else}
         <div class="bookmark-list">
           {#each bookmarkedBlogs.slice(0,4) as blog}
-            <div class="bookmark-row" on:click={() => currentPage.set('discover')}>
-              <img src={blog.image} alt="" class="bookmark-thumb" />
+            <button class="bookmark-row" on:click={() => currentPage.set('discover')}>
+              <img src={blog.image} alt={blog.title} class="bookmark-thumb" />
               <div class="bookmark-body">
                 <div class="bookmark-title">{blog.title}</div>
                 <div class="bookmark-meta">{blog.source} · {blog.readTime}</div>
               </div>
               <span class="bookmark-cat">{blog.category}</span>
-            </div>
+            </button>
           {/each}
           {#if bookmarkedBlogs.length > 4}
             <button class="ghost-link" style="margin-top:8px;width:100%;text-align:center" on:click={() => currentPage.set('discover')}>
@@ -176,12 +176,12 @@
 
   .new-btn {
     display: inline-flex; align-items: center; gap: 7px;
-    background: var(--text-black); color: #fff; border: none; cursor: pointer;
+    background: var(--text-black); color: var(--white); border: none; cursor: pointer;
     font-size: 14px; font-weight: 500; font-family: var(--sans);
     padding: 10px 20px; border-radius: 100px; white-space: nowrap;
     transition: background 0.15s; flex-shrink: 0;
   }
-  .new-btn:hover { background: #333; }
+  .new-btn:hover { background: var(--divider-strong); }
 
   /* Pipeline bar */
   .pipeline-bar {
@@ -220,7 +220,7 @@
     border: 1px solid var(--divider); border-radius: 8px;
     background: var(--white); cursor: pointer; text-align: left;
     transition: box-shadow 0.15s, border-color 0.15s;
-    font-family: var(--sans);
+    font-family: var(--sans); color: var(--text-body);
   }
   .stat-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); border-color: var(--divider-strong); }
   .stat-value {
@@ -260,11 +260,11 @@
   .ghost-link:hover { color: var(--text-black); }
   .pill-btn {
     display: inline-flex; align-items: center; gap: 6px;
-    background: var(--text-black); color: #fff; border: none; cursor: pointer;
+    background: var(--text-black); color: var(--white); border: none; cursor: pointer;
     font-size: 13px; font-weight: 500; font-family: var(--sans);
     padding: 7px 14px; border-radius: 100px; transition: background 0.15s;
   }
-  .pill-btn:hover { background: #333; }
+  .pill-btn:hover { background: var(--divider-strong); }
 
   /* Empty state */
   .empty-block { padding: 20px 0; text-align: center; }
@@ -277,6 +277,8 @@
     display: flex; align-items: center; gap: 12px;
     padding: 12px 0; border-bottom: 1px solid var(--divider);
     cursor: pointer; transition: background 0.1s;
+    width: 100%; background: none; border-left: none; border-right: none; border-top: none;
+    text-align: left; font-family: var(--sans);
   }
   .queue-row:last-child { border-bottom: none; }
   .queue-row:hover { background: var(--off-white); margin: 0 -8px; padding: 12px 8px; border-radius: 6px; }
@@ -306,7 +308,9 @@
   .bookmark-row {
     display: flex; align-items: center; gap: 12px;
     padding: 10px 0; border-bottom: 1px solid var(--divider);
-    cursor: pointer;
+    cursor: pointer; width: 100%; background: none;
+    border-left: none; border-right: none; border-top: none;
+    text-align: left; font-family: var(--sans);
   }
   .bookmark-row:last-child { border-bottom: none; }
   .bookmark-row:hover .bookmark-title { color: var(--green); }

@@ -1,5 +1,5 @@
 <script>
-  import { user, userAuthed, currentPage, notifications, unreadCount, markAllRead, logout, pipelineFlag, appMode } from '../stores/store.js';
+  import { user, userAuthed, currentPage, notifications, unreadCount, markAllRead, logout, pipelineFlag, appMode, dark, toggleTheme } from '../stores/store.js';
   import AuthPage       from '../pages/AuthPage.svelte';
   import HomePage       from '../pages/HomePage.svelte';
   import DiscoverPage   from '../pages/DiscoverPage.svelte';
@@ -90,6 +90,14 @@
         </nav>
 
         <div class="topnav-right">
+          <!-- Theme toggle -->
+          <button class="icon-btn theme-toggle" on:click={toggleTheme} aria-label="Toggle theme">
+            {#if $dark}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            {:else}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+            {/if}
+          </button>
           <!-- Back to landing -->
           <button class="icon-btn landing-back" on:click={() => appMode.set('landing')} title="Back to home">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -274,7 +282,7 @@
   .notif-badge {
     position: absolute; top: 3px; right: 6px;
     min-width: 15px; height: 15px;
-    background: var(--red); color: #fff;
+    background: var(--red); color: var(--white);
     border-radius: 99px; font-size: 9px; font-weight: 700;
     display: flex; align-items: center; justify-content: center; padding: 0 3px;
     pointer-events: none;
@@ -288,7 +296,7 @@
   .avatar-btn:hover { opacity: 0.8; }
   .user-avatar {
     width: 32px; height: 32px; border-radius: 50%;
-    background: var(--text-black); color: #fff;
+    background: var(--text-black); color: var(--white);
     display: flex; align-items: center; justify-content: center;
     font-size: 13px; font-weight: 600; font-family: var(--sans);
     user-select: none;
@@ -333,7 +341,7 @@
     display: flex; gap: 12px; padding: 12px 18px;
     border-top: 1px solid var(--divider); transition: background 0.1s;
   }
-  .notif-item.unread { background: #FAFAFA; }
+  .notif-item.unread { background: var(--off-white); }
   .notif-item:hover { background: var(--off-white); }
   .n-body { flex: 1; }
   .n-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-top: 5px; flex-shrink: 0; }

@@ -6,11 +6,16 @@
   let loading = true;
   let filter = 'all';
   let localSearch = '';
+  const PAGE_SIZE = 8;
+  let page = 1;
 
   onMount(() => {
     loading = true;
     setTimeout(() => loading = false, 1200);
   });
+
+  // reset page when filter or search changes
+  $: { filter; localSearch; page = 1; }
 
   $: interestedIds = $interestedBlogs.map(b => b.id);
 
@@ -37,6 +42,9 @@
                         || b.summary.toLowerCase().includes(localSearch.toLowerCase());
     return true;
   });
+
+  $: totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  $: paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   function getScores(id) {
     const seed = id * 137;
@@ -114,7 +122,7 @@
     </div>
   {:else}
     <div class="article-list">
-      {#each filtered as blog}
+      {#each paginated as blog}
         {@const isRejected   = $rejectedIds.includes(blog.id)}
         {@const isInterested = interestedIds.includes(blog.id)}
         {@const isBookmarked = $bookmarks.includes(blog.id)}
@@ -182,6 +190,14 @@
         </article>
       {/each}
     </div>
+
+    {#if totalPages > 1}
+      <div class="pagination">
+        <button disabled={page === 1} on:click={() => page--}>← Prev</button>
+        <span>Page {page} of {totalPages}</span>
+        <button disabled={page === totalPages} on:click={() => page++}>Next →</button>
+      </div>
+    {/if}
   {/if}
 </div>
 

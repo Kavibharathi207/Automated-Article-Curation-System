@@ -1,5 +1,5 @@
 <script>
-  import { currentAdminPage, isLoggedIn, adminLogout, appMode, pipelineStatus, setFlag, loginError } from '../stores/store.js';
+  import { currentAdminPage, isLoggedIn, adminLogout, appMode, pipelineStatus, setFlag, loginError, dark, toggleTheme } from '../stores/store.js';
   import AdminLogin      from '../pages/admin/AdminLogin.svelte';
   import AdminDashboard  from '../pages/admin/AdminDashboard.svelte';
   import RunHistory      from '../pages/admin/RunHistory.svelte';
@@ -66,6 +66,13 @@
             <path d="M19 12H5M12 5l-7 7 7 7"/>
           </svg>
           Home
+        </button>
+        <button class="admin-theme-btn" on:click={toggleTheme} aria-label="Toggle theme">
+          {#if $dark}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          {:else}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          {/if}
         </button>
         <button class="admin-ghost-link" on:click={adminLogout}>Logout</button>
       </div>
@@ -145,6 +152,14 @@
     padding: 4px 8px; transition: color 0.15s;
   }
   .admin-ghost-link:hover { color: #fff; }
+
+  .admin-theme-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    color: #ccc; cursor: pointer; transition: all 0.15s;
+  }
+  .admin-theme-btn:hover { background: rgba(255,255,255,0.18); color: #fff; }
 
   .admin-back-btn {
     display: inline-flex; align-items: center; gap: 6px;

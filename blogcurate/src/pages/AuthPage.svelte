@@ -5,10 +5,15 @@
   let name = '', email = '', password = '';
   let error = '', loading = false;
 
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   async function submit() {
     error = '';
-    if (!email.trim() || !password.trim()) { error = 'All fields are required.'; return; }
     if (mode === 'signup' && !name.trim()) { error = 'Name is required.'; return; }
+    if (!email.trim()) { error = 'Email is required.'; return; }
+    if (!EMAIL_RE.test(email.trim())) { error = 'Please enter a valid email address.'; return; }
+    if (!password.trim()) { error = 'Password is required.'; return; }
+    if (password.length < 6) { error = 'Password must be at least 6 characters.'; return; }
     loading = true;
     await new Promise(r => setTimeout(r, 600));
     const result = mode === 'login'
@@ -39,23 +44,23 @@
     <form on:submit|preventDefault={submit}>
       {#if mode === 'signup'}
         <div class="form-group">
-          <label class="form-label">Full Name</label>
-          <input bind:value={name} placeholder="Your full name" autocomplete="name" />
+          <label class="form-label" for="auth-name">Full Name</label>
+          <input id="auth-name" bind:value={name} placeholder="Your full name" autocomplete="name" />
         </div>
       {/if}
       <div class="form-group">
-        <label class="form-label">Email</label>
-        <input type="email" bind:value={email} placeholder="you@example.com" autocomplete="email" />
+        <label class="form-label" for="auth-email">Email</label>
+        <input id="auth-email" type="email" bind:value={email} placeholder="you@example.com" autocomplete="email" />
       </div>
       <div class="form-group">
-        <label class="form-label">Password</label>
-        <input type="password" bind:value={password} placeholder="••••••••" autocomplete="current-password" />
+        <label class="form-label" for="auth-password">Password</label>
+        <input id="auth-password" type="password" bind:value={password} placeholder="••••••••" autocomplete="current-password" />
       </div>
       {#if error}
         <div class="form-error">{error}</div>
       {/if}
       <button class="btn btn-primary btn-full" style="margin-top:12px" disabled={loading}>
-        {#if loading}<span class="spinner" style="width:14px;height:14px;border-width:2px;border-top-color:#fff"></span>{/if}
+        {#if loading}<span class="spinner" style="width:14px;height:14px;border-width:2px;border-top-color:currentColor"></span>{/if}
         {loading ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
       </button>
     </form>

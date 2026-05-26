@@ -2,15 +2,21 @@ import { writable, derived } from 'svelte/store';
 
 // ── Config ──────────────────────────────────────
 export const API_BASE = 'http://localhost:8080/api/pipeline';
-export const API_KEY  = 'autocuration@57';
+const API_KEY = import.meta.env.VITE_ADMIN_KEY ?? '';
 
 // ── App Mode: 'landing' | 'admin' | 'user' ──────
 export const appMode = writable('landing');
 
 // ── Theme ────────────────────────────────────────
-export const dark = writable(localStorage.getItem('dark') !== 'false');
-dark.subscribe(v => localStorage.setItem('dark', v));
-export const toggleTheme = () => dark.update(d => !d);
+const _savedDark = localStorage.getItem('dark');
+// Clear stale 'false' string written by old code — treat as no preference
+if (_savedDark === 'false') localStorage.removeItem('dark');
+export const dark = writable(_savedDark === 'true');
+export const toggleTheme = () => dark.update(d => {
+  const next = !d;
+  localStorage.setItem('dark', next);
+  return next;
+});
 
 // ── User Auth ────────────────────────────────────
 const storedUser = JSON.parse(localStorage.getItem('bca_user') || 'null');
@@ -34,9 +40,26 @@ export function logout() {
   user.set(null); userAuthed.set(false);
   currentPage.set('home'); appMode.set('landing');
 }
+export function updateUser(name, email) {
+  user.update(u => {
+    const updated = { ...u, name, email };
+    localStorage.setItem('bca_user', JSON.stringify(updated));
+    return updated;
+  });
+  showToast('Profile saved', 'success');
+}
 
 // ── User Navigation ──────────────────────────────
 export const currentPage = writable('home');
+
+// ── Toast ───────────────────────────────────────
+export const toasts = writable([]);
+let _toastId = 0;
+export function showToast(text, type = 'success', duration = 3000) {
+  const id = ++_toastId;
+  toasts.update(ts => [...ts, { id, text, type }]);
+  setTimeout(() => toasts.update(ts => ts.filter(t => t.id !== id)), duration);
+}
 
 // ── Notifications ────────────────────────────────
 export const notifications = writable([
@@ -80,13 +103,20 @@ bookmarks.subscribe(v => localStorage.setItem('bca_bookmarks', JSON.stringify(v)
 export function rejectBlog(id) {
   rejectedIds.update(ids => [...ids, id]);
   interestedBlogs.update(bs => bs.filter(b => b.id !== id));
+  showToast('Marked as not interested', 'info');
 }
 export function interestBlog(blog) {
   rejectedIds.update(ids => ids.filter(id => id !== blog.id));
   interestedBlogs.update(bs => bs.find(b => b.id === blog.id) ? bs : [...bs, blog]);
+  showToast('Added to interested', 'success');
 }
 export function toggleBookmark(id) {
-  bookmarks.update(bs => bs.includes(id) ? bs.filter(b => b !== id) : [...bs, id]);
+  let added;
+  bookmarks.update(bs => {
+    added = !bs.includes(id);
+    return added ? [...bs, id] : bs.filter(b => b !== id);
+  });
+  showToast(added ? 'Bookmarked' : 'Bookmark removed', 'success');
 }
 
 // ── Publish / Schedule ────────────────────────────
@@ -97,15 +127,19 @@ scheduledPosts.subscribe(v => localStorage.setItem('bca_posts', JSON.stringify(v
 
 export const publishTime = writable(localStorage.getItem('bca_time') || '02:00');
 export const timezone    = writable(localStorage.getItem('bca_tz')   || 'Asia/Kolkata');
-export const autoPublish = writable(true);
-export const bilingual   = writable(false);
-export const emailNotif  = writable(true);
+export const autoPublish = writable(localStorage.getItem('bca_autopublish') !== 'false');
+export const bilingual   = writable(localStorage.getItem('bca_bilingual') === 'true');
+export const emailNotif  = writable(localStorage.getItem('bca_emailnotif') !== 'false');
 
 publishTime.subscribe(v => localStorage.setItem('bca_time', v));
 timezone.subscribe(v    => localStorage.setItem('bca_tz', v));
+autoPublish.subscribe(v => localStorage.setItem('bca_autopublish', v));
+bilingual.subscribe(v   => localStorage.setItem('bca_bilingual', v));
+emailNotif.subscribe(v  => localStorage.setItem('bca_emailnotif', v));
 
 export function schedulePost(post) {
   scheduledPosts.update(ps => [...ps, post]);
+  showToast('Blog scheduled successfully', 'success');
 }
 
 // ── Curation pipeline stats (derived from real user actions) ──
@@ -148,9 +182,18 @@ export const isLoggedIn   = writable(!!localStorage.getItem('admin_key'));
 export const loginError   = writable('');
 export const loginLoading = writable(false);
 
+function timingSafeEqual(a, b) {
+  let mismatch = a.length !== b.length ? 1 : 0;
+  const len = Math.max(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    mismatch |= (a.charCodeAt(i) ?? 0) ^ (b.charCodeAt(i) ?? 0);
+  }
+  return mismatch === 0;
+}
+
 export function adminLogin(key) {
   loginError.set('');
-  if (key === API_KEY) {
+  if (timingSafeEqual(key, API_KEY)) {
     localStorage.setItem('admin_key', key);
     adminKey.set(key); isLoggedIn.set(true);
     currentAdminPage.set('dashboard');

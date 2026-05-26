@@ -20,8 +20,9 @@
 
     <form on:submit|preventDefault={() => adminLogin(key)}>
       <div class="form-group">
-        <label class="form-label">API Key</label>
+        <label class="form-label" for="admin-key">API Key</label>
         <input
+          id="admin-key"
           type="password"
           bind:value={key}
           placeholder="Enter your API key"

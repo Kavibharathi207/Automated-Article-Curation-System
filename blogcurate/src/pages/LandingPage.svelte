@@ -1,5 +1,5 @@
 <script>
-  import { appMode } from '../stores/store.js';
+  import { appMode, dark, toggleTheme } from '../stores/store.js';
 
   // Show back button if user arrived here from user/admin mode
   let prevMode = null;
@@ -13,6 +13,13 @@
       <div class="nav-logo">ACS</div>
     </div>
     <div class="nav-right">
+      <button class="theme-btn" on:click={toggleTheme} aria-label="Toggle theme">
+        {#if $dark}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        {:else}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        {/if}
+      </button>
       <button class="nav-link-btn" on:click={() => appMode.set('user')}>User Platform</button>
       <button class="btn btn-primary btn-sm" on:click={() => appMode.set('admin')}>Admin Panel</button>
     </div>
@@ -93,6 +100,14 @@
     padding: 6px 12px; border-radius: 100px; transition: color 0.15s, background 0.15s;
   }
   .nav-link-btn:hover { color: var(--text-black); background: var(--off-white); }
+
+  .theme-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 50%;
+    background: none; border: 1px solid var(--divider);
+    color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+  }
+  .theme-btn:hover { background: var(--off-white); color: var(--text-black); border-color: var(--divider-strong); }
 
   .hero {
     flex: 1; display: flex; align-items: center; justify-content: center;

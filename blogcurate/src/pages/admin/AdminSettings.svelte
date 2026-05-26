@@ -72,12 +72,12 @@
     </div>
     <div class="fields">
       <div class="field-row">
-        <label class="field-label">Run Time</label>
-        <input type="time" bind:value={runTime} class="field-narrow" />
+        <label class="field-label" for="run-time">Run Time</label>
+        <input id="run-time" type="time" bind:value={runTime} class="field-narrow" />
       </div>
       <div class="field-row">
-        <label class="field-label">Timezone</label>
-        <select bind:value={tz} class="field-narrow">
+        <label class="field-label" for="run-tz">Timezone</label>
+        <select id="run-tz" bind:value={tz} class="field-narrow">
           <option value="Asia/Kolkata">IST — Asia/Kolkata</option>
           <option value="Europe/Paris">CET — Europe/Paris</option>
           <option value="America/New_York">EST — America/New_York</option>
@@ -89,14 +89,14 @@
           <div class="field-label">Parallel Processing</div>
           <div class="field-hint">Run scoring and generation concurrently</div>
         </div>
-        <button class="toggle" class:on={parallel} on:click={() => parallel = !parallel}></button>
+        <button class="toggle" class:on={parallel} aria-label="Toggle parallel processing" on:click={() => parallel = !parallel}></button>
       </div>
       <div class="field-row">
         <div>
           <div class="field-label">Bilingual Mode</div>
           <div class="field-hint">Generate articles in French &amp; English</div>
         </div>
-        <button class="toggle" class:on={bilingual} on:click={() => bilingual = !bilingual}></button>
+        <button class="toggle" class:on={bilingual} aria-label="Toggle bilingual mode" on:click={() => bilingual = !bilingual}></button>
       </div>
     </div>
   </div>
@@ -109,29 +109,29 @@
     </div>
     <div class="fields">
       <div class="field-row">
-        <label class="field-label">Endpoint URL</label>
+        <label class="field-label" for="cms-endpoint">Endpoint URL</label>
         <div class="inline-row">
-          <input bind:value={cmsEndpoint} placeholder="https://cms.example.com/api/v1" style="flex:1" />
+          <input id="cms-endpoint" bind:value={cmsEndpoint} placeholder="https://cms.example.com/api/v1" style="flex:1" />
           <button class="btn btn-secondary btn-sm" on:click={testCms} disabled={cmsStatus === 'testing'}>
             {cmsStatus === 'testing' ? 'Testing…' : 'Test'}
           </button>
         </div>
       </div>
       <div class="field-row">
-        <label class="field-label">Connection Status</label>
-        <span class="cms-pill {cmsStatus}">
+        <label class="field-label" for="cms-status">Connection Status</label>
+        <span id="cms-status" class="cms-pill {cmsStatus}">
           {#if cmsStatus === 'connected'}✓ Connected
           {:else if cmsStatus === 'testing'}⟳ Testing…
           {:else}✗ Error{/if}
         </span>
       </div>
       <div class="field-row">
-        <label class="field-label">API Key</label>
+        <label class="field-label" for="cms-key">API Key</label>
         <div class="inline-row">
           {#if showKey}
-            <input type="text" bind:value={cmsApiKey} style="flex:1;font-family:monospace;font-size:13px" />
+            <input id="cms-key" type="text" bind:value={cmsApiKey} style="flex:1;font-family:monospace;font-size:13px" />
           {:else}
-            <input type="password" bind:value={cmsApiKey} style="flex:1;font-family:monospace;font-size:13px" />
+            <input id="cms-key" type="password" bind:value={cmsApiKey} style="flex:1;font-family:monospace;font-size:13px" />
           {/if}
           <button class="btn btn-secondary btn-sm" on:click={() => showKey = !showKey}>{showKey ? 'Hide' : 'Show'}</button>
           <button class="btn btn-secondary btn-sm" on:click={rotateKey}>Rotate</button>
@@ -179,7 +179,7 @@
             <div class="field-label">{n.label}</div>
             <div class="field-hint">{n.hint}</div>
           </div>
-          <button class="toggle" class:on={n.on} on:click={() => n.on = !n.on}></button>
+          <button class="toggle" class:on={n.on} aria-label="Toggle {n.label}" on:click={() => n.on = !n.on}></button>
         </div>
       {/each}
     </div>

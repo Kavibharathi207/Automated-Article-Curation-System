@@ -1,18 +1,26 @@
 <script>
-  import { user, logout, dark, toggleTheme, publishTime, timezone, autoPublish, bilingual, emailNotif, pipelineFlag, setPipelineFlag, currentPage } from '../stores/store.js';
+  import { user, logout, dark, toggleTheme, publishTime, timezone, autoPublish, bilingual, emailNotif, pipelineFlag, setPipelineFlag, currentPage, updateUser } from '../stores/store.js';
   import OnboardingModal from '../components/OnboardingModal.svelte';
 
   let saved = false;
+  let saveError = '';
   let showTour = false;
+
+  let displayName = $user?.name ?? '';
+  let displayEmail = $user?.email ?? '';
+
+  $: displayName = $user?.name ?? '';
+  $: displayEmail = $user?.email ?? '';
+
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   function replayTour() { showTour = true; }
 
   function save() {
-    if ($user?.isNew) {
-      user.update(u => ({ ...u, isNew: false }));
-      const stored = JSON.parse(localStorage.getItem('bca_auth') || '{}');
-      localStorage.setItem('bca_auth', JSON.stringify({ ...stored, isNew: false }));
-    }
+    saveError = '';
+    if (!displayName.trim()) { saveError = 'Display name cannot be empty.'; return; }
+    if (!EMAIL_RE.test(displayEmail.trim())) { saveError = 'Please enter a valid email address.'; return; }
+    updateUser(displayName.trim(), displayEmail.trim());
     saved = true;
     setTimeout(() => saved = false, 2000);
   }
@@ -34,6 +42,9 @@
       {/if}
     </button>
   </div>
+  {#if saveError}
+    <div class="save-error">{saveError}</div>
+  {/if}
 
   <div class="settings-layout">
     <!-- LEFT COLUMN -->
@@ -53,12 +64,12 @@
           </div>
         </div>
         <div class="field-group">
-          <label class="field-label">Display Name</label>
-          <input value={$user?.name} placeholder="Your name" />
+          <label class="field-label" for="display-name">Display Name</label>
+          <input id="display-name" bind:value={displayName} placeholder="Your name" />
         </div>
         <div class="field-group">
-          <label class="field-label">Email</label>
-          <input value={$user?.email} placeholder="you@example.com" />
+          <label class="field-label" for="display-email">Email</label>
+          <input id="display-email" type="email" bind:value={displayEmail} placeholder="you@example.com" />
         </div>
       </section>
 
@@ -66,12 +77,12 @@
       <section class="settings-card">
         <h2 class="card-heading">Publish Schedule</h2>
         <div class="field-group">
-          <label class="field-label">Default Publish Time</label>
-          <input type="time" bind:value={$publishTime} />
+          <label class="field-label" for="publish-time">Default Publish Time</label>
+          <input id="publish-time" type="time" bind:value={$publishTime} />
         </div>
         <div class="field-group">
-          <label class="field-label">Timezone</label>
-          <select bind:value={$timezone}>
+          <label class="field-label" for="publish-tz">Timezone</label>
+          <select id="publish-tz" bind:value={$timezone}>
             <option value="Asia/Kolkata">IST — Asia/Kolkata</option>
             <option value="Europe/Paris">CET — Europe/Paris</option>
             <option value="America/New_York">EST — America/New_York</option>
@@ -83,7 +94,7 @@
             <div class="toggle-label">Auto Publish</div>
             <div class="toggle-desc">Publish without manual confirmation</div>
           </div>
-          <button class="toggle" class:on={$autoPublish} on:click={() => autoPublish.update(v => !v)}></button>
+          <button class="toggle" class:on={$autoPublish} aria-label="Toggle auto publish" on:click={() => autoPublish.update(v => !v)}></button>
         </div>
       </section>
 
@@ -107,11 +118,11 @@
             <div class="toggle-label">Bilingual Mode</div>
             <div class="toggle-desc">Generate content in French &amp; English</div>
           </div>
-          <button class="toggle" class:on={$bilingual} on:click={() => bilingual.update(v => !v)}></button>
+          <button class="toggle" class:on={$bilingual} aria-label="Toggle bilingual mode" on:click={() => bilingual.update(v => !v)}></button>
         </div>
         <div class="field-group" style="margin-top:16px">
-          <label class="field-label">Ollama Endpoint</label>
-          <input value="http://localhost:11434" />
+          <label class="field-label" for="ollama-endpoint">Ollama Endpoint</label>
+          <input id="ollama-endpoint" value="http://localhost:11434" />
         </div>
       </section>
 
@@ -123,14 +134,14 @@
             <div class="toggle-label">Email Notifications</div>
             <div class="toggle-desc">Get notified when blogs are published</div>
           </div>
-          <button class="toggle" class:on={$emailNotif} on:click={() => emailNotif.update(v => !v)}></button>
+          <button class="toggle" class:on={$emailNotif} aria-label="Toggle email notifications" on:click={() => emailNotif.update(v => !v)}></button>
         </div>
         <div class="toggle-row">
           <div class="toggle-info">
             <div class="toggle-label">Dark Mode</div>
             <div class="toggle-desc">Toggle dark / light theme</div>
           </div>
-          <button class="toggle" class:on={$dark} on:click={toggleTheme}></button>
+          <button class="toggle" class:on={$dark} aria-label="Toggle dark mode" on:click={toggleTheme}></button>
         </div>
       </section>
 
@@ -208,12 +219,17 @@
 
   .save-btn {
     display: inline-flex; align-items: center; gap: 7px;
-    background: var(--text-black); color: #fff; border: none; cursor: pointer;
+    background: var(--text-black); color: var(--white); border: none; cursor: pointer;
     font-size: 14px; font-weight: 500; font-family: var(--sans);
     padding: 10px 20px; border-radius: 100px; white-space: nowrap;
     transition: background 0.15s; flex-shrink: 0;
   }
-  .save-btn:hover { background: #333; }
+  .save-btn:hover { background: var(--divider-strong); }
+
+  .save-error {
+    font-size: 13px; color: var(--red);
+    margin-bottom: 20px; margin-top: -12px;
+  }
 
   /* Two-column layout */
   .settings-layout {
@@ -245,7 +261,7 @@
   }
   .profile-avatar {
     width: 44px; height: 44px; border-radius: 50%;
-    background: var(--text-black); color: #fff;
+    background: var(--text-black); color: var(--white);
     display: flex; align-items: center; justify-content: center;
     font-size: 18px; font-weight: 600; flex-shrink: 0;
   }
@@ -258,7 +274,7 @@
     padding: 3px 10px; border-radius: 100px; margin-top: 6px;
     letter-spacing: 0.02em;
   }
-  .status-pill.new    { background: #EDE9FE; color: #5B21B6; }
+  .status-pill.new    { background: var(--off-white); color: var(--text-muted); border: 1px solid var(--divider-strong); }
   .status-pill.active { background: var(--green-light); color: var(--green-dark); }
 
   /* Form fields */
@@ -290,7 +306,7 @@
     transition: background 0.15s, border-color 0.15s; text-align: left;
     width: 100%;
   }
-  .account-btn:hover { background: #F0F0F0; border-color: var(--divider-strong); }
+  .account-btn:hover { background: var(--divider); border-color: var(--divider-strong); }
   .account-btn.danger { color: var(--red); }
   .account-btn.danger:hover { background: var(--red-light); border-color: var(--red); }
   .account-btn svg { color: var(--text-muted); flex-shrink: 0; }

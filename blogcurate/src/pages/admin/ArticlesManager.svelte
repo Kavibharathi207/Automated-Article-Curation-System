@@ -66,15 +66,15 @@
   {:else}
     <div class="article-list">
       {#each filtered as a}
-        <div class="article-row" on:click={() => openSlide(a)}>
+        <button class="article-row" on:click={() => openSlide(a)}>
           {#if a.imageUrl}
-            <img class="article-thumb" src={a.imageUrl} alt="" />
+            <img class="article-thumb" src={a.imageUrl} alt={a.title} />
           {:else}
-            <div class="article-thumb placeholder"></div>
+            <div class="article-thumb placeholder" aria-hidden="true"></div>
           {/if}
           <div class="article-body">
             <div class="article-title">
-              {#if a.featured}<span class="star">⭐</span>{/if}
+              {#if a.featured}<span class="star" aria-label="Featured">⭐</span>{/if}
               {a.title}
             </div>
             <div class="article-meta">
@@ -86,11 +86,11 @@
               <div class="article-summary">{a.summary}</div>
             {/if}
           </div>
-          <div class="article-scores">
+          <div class="article-scores" aria-label="Relevance {a.relevanceScore?.toFixed(1)}, Innovation {a.innovationScore?.toFixed(1)}">
             <span class="score-val {scoreClass(a.relevanceScore)}">{a.relevanceScore?.toFixed(1)}</span>
             <span class="score-val {scoreClass(a.innovationScore)}">{a.innovationScore?.toFixed(1)}</span>
           </div>
-        </div>
+        </button>
       {/each}
     </div>
   {/if}
@@ -98,7 +98,14 @@
 
 <!-- Slide-over -->
 {#if slideOver}
-  <div class="overlay" on:click={closeSlide}></div>
+  <div
+    class="overlay"
+    role="button"
+    tabindex="0"
+    aria-label="Close panel"
+    on:click={closeSlide}
+    on:keydown={e => (e.key === 'Enter' || e.key === 'Escape') && closeSlide()}
+  ></div>
   <div class="slide-over">
     <button class="slide-close" on:click={closeSlide}>✕</button>
     {#if slideOver.imageUrl}
@@ -148,6 +155,8 @@
     display: flex; gap: 16px; align-items: flex-start;
     padding: 20px 0; border-bottom: 1px solid var(--divider);
     cursor: pointer; transition: background 0.1s;
+    width: 100%; background: none; border-left: none; border-right: none; border-top: none;
+    text-align: left; font-family: var(--sans);
   }
   .article-row:hover { background: var(--off-white); margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
   .article-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: var(--radius); flex-shrink: 0; }

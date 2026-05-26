@@ -7,6 +7,7 @@
   let regenerating = false;
   let editing      = false;
   let published    = false;
+  let copied       = false;
   let countdown    = { h: 0, m: 0, s: 0 };
   let interval;
 
@@ -101,6 +102,14 @@
   }
   function cancelEdit() { editing = false; }
 
+  async function copyMarkdown() {
+    const md = `# ${blog.title}\n\n` +
+      blog.content.map(b => b.type === 'h2' ? `## ${b.text}` : b.text).join('\n\n');
+    await navigator.clipboard.writeText(md);
+    copied = true;
+    setTimeout(() => copied = false, 2000);
+  }
+
   function handleSchedule() {
     const [hh, mm] = $publishTime.split(':').map(Number);
     const d = new Date();
@@ -174,12 +183,12 @@
               </div>
             </div>
             <div class="field-group">
-              <label class="field-label">Title</label>
-              <input bind:value={editTitle} placeholder="Blog title…" class="edit-title-input" />
+              <label class="field-label" for="edit-title">Title</label>
+              <input id="edit-title" bind:value={editTitle} placeholder="Blog title…" class="edit-title-input" />
             </div>
             <div class="field-group">
-              <label class="field-label">Content — use ## for section headings, blank line between paragraphs</label>
-              <textarea bind:value={editContent} rows="20" class="edit-textarea"
+              <label class="field-label" for="edit-content">Content — use ## for section headings, blank line between paragraphs</label>
+              <textarea id="edit-content" bind:value={editContent} rows="20" class="edit-textarea"
                 placeholder="## Section Heading&#10;&#10;Paragraph text here…"></textarea>
             </div>
           </div>
@@ -251,12 +260,12 @@
             <span class="cd-seg">{pad(countdown.s)}<span class="cd-unit">s</span></span>
           </div>
           <div class="field-group">
-            <label class="field-label">Publish time</label>
-            <input type="time" bind:value={$publishTime} />
+            <label class="field-label" for="pub-time">Publish time</label>
+            <input id="pub-time" type="time" bind:value={$publishTime} />
           </div>
           <div class="field-group">
-            <label class="field-label">Timezone</label>
-            <select bind:value={$timezone}>
+            <label class="field-label" for="pub-tz">Timezone</label>
+            <select id="pub-tz" bind:value={$timezone}>
               <option value="Asia/Kolkata">IST — Asia/Kolkata</option>
               <option value="Europe/Paris">CET — Europe/Paris</option>
               <option value="America/New_York">EST — America/New_York</option>
@@ -301,6 +310,9 @@
             {:else}
               <button class="action-btn" on:click={startEdit}>Edit Blog</button>
               <button class="action-btn" on:click={regenerate}>Regenerate</button>
+              <button class="action-btn" on:click={copyMarkdown}>
+                {copied ? '✓ Copied!' : 'Copy Markdown'}
+              </button>
             {/if}
             <button class="action-btn danger" on:click={() => currentPage.set('discover')}>Discard</button>
           </div>

@@ -68,9 +68,11 @@
   function prev()   { if (!isFirst) step--; }
 
   function finish() {
-    user.update(u => ({ ...u, isNew: false }));
-    const stored = JSON.parse(localStorage.getItem('bca_auth') || '{}');
-    localStorage.setItem('bca_auth', JSON.stringify({ ...stored, isNew: false }));
+    user.update(u => {
+      const updated = { ...u, isNew: false };
+      localStorage.setItem('bca_user', JSON.stringify(updated));
+      return updated;
+    });
     dispatch('close');
   }
 
@@ -92,7 +94,7 @@
     <!-- Dot indicators -->
     <div class="dots">
       {#each steps as _, i}
-        <button class="dot" class:active={i === step} class:done={i < step} on:click={() => step = i}></button>
+        <button class="dot" class:active={i === step} class:done={i < step} on:click={() => step = i} aria-label="Go to step {i + 1}"></button>
       {/each}
     </div>
 

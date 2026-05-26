@@ -90,25 +90,40 @@
 
 <!-- Add theme modal -->
 {#if showAddModal}
-  <div class="modal-overlay" on:click={closeModal}>
-    <div class="modal" on:click|stopPropagation>
-      <h2 class="modal-title">Add new theme</h2>
+  <div
+    class="modal-overlay"
+    role="button"
+    tabindex="0"
+    aria-label="Close modal"
+    on:click={closeModal}
+    on:keydown={e => (e.key === 'Enter' || e.key === 'Escape') && closeModal()}
+  >
+    <div
+      class="modal"
+      role="dialog"
+      tabindex="-1"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      on:click|stopPropagation
+      on:keydown|stopPropagation
+    >
+      <h2 class="modal-title" id="modal-title">Add new theme</h2>
       <div class="form-group">
-        <label class="form-label">Theme name</label>
-        <input bind:value={newThemeName} placeholder="e.g. tech-innovation" />
+        <label class="form-label" for="theme-name">Theme name</label>
+        <input id="theme-name" bind:value={newThemeName} placeholder="e.g. tech-innovation" />
       </div>
       <div class="form-group">
-        <label class="form-label">Language</label>
-        <select bind:value={newThemeLang} style="width:auto">
+        <label class="form-label" for="theme-lang">Language</label>
+        <select id="theme-lang" bind:value={newThemeLang} style="width:auto">
           <option value="EN">EN</option>
           <option value="FR">FR</option>
           <option value="Both">Both</option>
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Keywords</label>
+        <label class="form-label" for="kw-input">Keywords</label>
         <div class="kw-input-row">
-          <input bind:value={kwInput} on:keydown={onKwKey} placeholder="Type keyword and press Enter" />
+          <input id="kw-input" bind:value={kwInput} on:keydown={onKwKey} placeholder="Type keyword and press Enter" />
           <button class="btn btn-secondary btn-sm" on:click={addKw}>Add</button>
         </div>
         {#if newKeywords.length}
@@ -116,7 +131,7 @@
             {#each newKeywords as k}
               <span class="kw-pill">
                 {k}
-                <button on:click={() => removeKw(k)}>×</button>
+                <button on:click={() => removeKw(k)} aria-label="Remove {k}">×</button>
               </span>
             {/each}
           </div>

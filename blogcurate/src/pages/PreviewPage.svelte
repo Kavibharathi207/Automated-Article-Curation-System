@@ -8,8 +8,11 @@
   let editing      = false;
   let published    = false;
   let copied       = false;
+  let typingDone   = false;
+  let displayedTitle = '';
   let countdown    = { h: 0, m: 0, s: 0 };
   let interval;
+  let typingInterval;
 
   let relevanceScore  = 8.7;
   let innovationScore = 9.2;
@@ -25,12 +28,23 @@
   let editTitle   = blog.title;
   let editContent = blog.content.map(b => b.type === 'h2' ? `## ${b.text}` : b.text).join('\n\n');
 
+  function startTyping() {
+    displayedTitle = '';
+    typingDone = false;
+    let i = 0;
+    clearInterval(typingInterval);
+    typingInterval = setInterval(() => {
+      displayedTitle = blog.title.slice(0, ++i);
+      if (i >= blog.title.length) { clearInterval(typingInterval); typingDone = true; }
+    }, 28);
+  }
+
   onMount(() => {
-    setTimeout(() => loading = false, 1800);
+    setTimeout(() => { loading = false; startTyping(); }, 1800);
     interval = setInterval(tick, 1000);
     tick();
   });
-  onDestroy(() => clearInterval(interval));
+  onDestroy(() => { clearInterval(interval); clearInterval(typingInterval); });
 
   function tick() {
     const [hh, mm] = $publishTime.split(':').map(Number);
@@ -82,6 +96,7 @@
     editTitle   = blog.title;
     editContent = blog.content.map(b => b.type === 'h2' ? `## ${b.text}` : b.text).join('\n\n');
     regenerating = false;
+    startTyping();
   }
 
   function startEdit() {
@@ -108,6 +123,17 @@
     await navigator.clipboard.writeText(md);
     copied = true;
     setTimeout(() => copied = false, 2000);
+  }
+
+  async function exportPDF() {
+    const content = `${blog.title}\n\n` +
+      blog.content.map(b => b.type === 'h2' ? `\n${b.text}\n` : b.text).join('\n\n');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${blog.title.slice(0, 40).replace(/[^a-z0-9]/gi, '-')}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   function handleSchedule() {
@@ -207,7 +233,7 @@
               </div>
 
               <!-- Title -->
-              <h1 class="blog-title">{blog.title}</h1>
+              <h1 class="blog-title">{typingDone ? blog.title : displayedTitle}<span class="typing-cursor" class:hidden={typingDone}>|</span></h1>
 
               <!-- Byline -->
               <div class="blog-byline">
@@ -313,6 +339,7 @@
               <button class="action-btn" on:click={copyMarkdown}>
                 {copied ? '✓ Copied!' : 'Copy Markdown'}
               </button>
+              <button class="action-btn" on:click={exportPDF}>Export as TXT</button>
             {/if}
             <button class="action-btn danger" on:click={() => currentPage.set('discover')}>Discard</button>
           </div>
@@ -410,6 +437,14 @@
     color: var(--text-black); line-height: 1.25; letter-spacing: -0.4px;
     margin-bottom: 14px;
   }
+  .typing-cursor {
+    display: inline-block;
+    color: var(--green);
+    animation: blink 0.7s step-end infinite;
+    margin-left: 1px;
+  }
+  .typing-cursor.hidden { display: none; }
+  @keyframes blink { 0%,100% { opacity: 1 } 50% { opacity: 0 } }
 
   .blog-byline {
     display: flex; align-items: center; gap: 6px;

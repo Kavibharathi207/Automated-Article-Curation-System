@@ -8,6 +8,7 @@
   let localSearch = '';
   const PAGE_SIZE = 8;
   let page = 1;
+  let dismissing = {}; // id -> 'interested' | 'rejected'
 
   onMount(() => {
     loading = true;
@@ -57,6 +58,15 @@
   function handleGenerate(blog) {
     selectedBlogId.set(blog.id);
     currentPage.set('preview');
+  }
+
+  function animateReject(id) {
+    dismissing = { ...dismissing, [id]: 'rejected' };
+    setTimeout(() => { rejectBlog(id); dismissing = { ...dismissing }; delete dismissing[id]; }, 350);
+  }
+  function animateInterest(blog) {
+    dismissing = { ...dismissing, [blog.id]: 'interested' };
+    setTimeout(() => { interestBlog(blog); dismissing = { ...dismissing }; delete dismissing[blog.id]; }, 350);
   }
 </script>
 
@@ -127,7 +137,13 @@
         {@const isInterested = interestedIds.includes(blog.id)}
         {@const isBookmarked = $bookmarks.includes(blog.id)}
         {@const sc = getScores(blog.id)}
-        <article class="article-card" class:is-rejected={isRejected} class:is-interested={isInterested}>
+        <article
+          class="article-card"
+          class:is-rejected={isRejected}
+          class:is-interested={isInterested}
+          class:dismiss-right={dismissing[blog.id] === 'interested'}
+          class:dismiss-left={dismissing[blog.id] === 'rejected'}
+        >
           <div class="article-body">
             <!-- Meta row -->
             <div class="article-meta">
@@ -174,10 +190,10 @@
                     ✨ Generate Blog
                   </button>
                 {:else}
-                  <button class="action-btn reject" class:active={isRejected} on:click={() => rejectBlog(blog.id)}>
+                  <button class="action-btn reject" class:active={isRejected} on:click={() => animateReject(blog.id)}>
                     {isRejected ? 'Rejected' : 'Not Interested'}
                   </button>
-                  <button class="action-btn interest" on:click={() => interestBlog(blog)}>
+                  <button class="action-btn interest" on:click={() => animateInterest(blog)}>
                     👍 Interested
                   </button>
                 {/if}
@@ -286,9 +302,20 @@
   .article-card {
     display: flex; align-items: flex-start; gap: 24px;
     padding: 28px 0; border-bottom: 1px solid var(--divider);
-    transition: opacity 0.2s;
+    transition: opacity 0.2s, transform 0.35s ease, max-height 0.35s ease;
+    overflow: hidden;
   }
   .article-card.is-rejected { opacity: 0.45; }
+  .article-card.dismiss-right {
+    transform: translateX(60px);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .article-card.dismiss-left {
+    transform: translateX(-60px);
+    opacity: 0;
+    pointer-events: none;
+  }
   .article-card.is-interested { background: transparent; }
 
   .article-body { flex: 1; min-width: 0; }

@@ -1,5 +1,11 @@
 <script>
   import { currentPage, interestedBlogs, rejectBlog } from '../stores/store.js';
+
+  let categoryFilter = 'All';
+
+  $: categories = ['All', ...new Set($interestedBlogs.map(b => b.category))];
+  $: filtered = categoryFilter === 'All' ? $interestedBlogs : $interestedBlogs.filter(b => b.category === categoryFilter);
+  $: progress = $interestedBlogs.length;
 </script>
 
 <div class="list-wrap">
@@ -24,6 +30,35 @@
     {/if}
   </div>
 
+  {#if $interestedBlogs.length > 0}
+    <!-- Progress bar -->
+    <div class="progress-wrap">
+      <div class="progress-info">
+        <span class="progress-label">Selection progress</span>
+        <span class="progress-count">{progress} selected</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" style="width:{Math.min(progress * 10, 100)}%"></div>
+      </div>
+    </div>
+
+    <!-- Category chips -->
+    <div class="chip-row">
+      {#each categories as cat}
+        <button
+          class="chip"
+          class:active={categoryFilter === cat}
+          on:click={() => categoryFilter = cat}
+        >
+          {cat}
+          {#if cat !== 'All'}
+            <span class="chip-count">{$interestedBlogs.filter(b => b.category === cat).length}</span>
+          {/if}
+        </button>
+      {/each}
+    </div>
+  {/if}
+
   {#if $interestedBlogs.length === 0}
     <div class="empty-wrap">
       <p class="empty-title">No interested blogs yet</p>
@@ -32,7 +67,7 @@
     </div>
   {:else}
     <div class="blog-list">
-      {#each $interestedBlogs as blog}
+      {#each filtered as blog}
         <div class="blog-row">
           <img src={blog.image} alt="" class="blog-thumb" />
           <div class="blog-body">
@@ -61,6 +96,41 @@
 
 <style>
   .list-wrap { max-width: 860px; margin: 0 auto; padding: 0 24px 80px; }
+
+  /* Progress */
+  .progress-wrap { padding: 20px 0 4px; }
+  .progress-info { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .progress-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+  .progress-count { font-size: 12px; color: var(--text-black); font-weight: 600; }
+  .progress-track {
+    height: 4px; background: var(--divider); border-radius: 99px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: var(--green); border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+
+  /* Category chips */
+  .chip-row {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    padding: 16px 0 20px; border-bottom: 1px solid var(--divider);
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 14px; border-radius: 100px;
+    font-size: 13px; font-weight: 500; font-family: var(--sans);
+    border: 1px solid var(--divider); background: var(--white);
+    color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+  }
+  .chip:hover { border-color: var(--divider-strong); color: var(--text-black); }
+  .chip.active { background: var(--text-black); color: #fff; border-color: var(--text-black); }
+  .chip-count {
+    background: rgba(255,255,255,0.2); border-radius: 99px;
+    padding: 1px 6px; font-size: 11px;
+  }
+  .chip:not(.active) .chip-count {
+    background: var(--off-white); color: var(--text-muted);
+  }
 
   .list-header {
     display: flex; align-items: flex-start; justify-content: space-between;

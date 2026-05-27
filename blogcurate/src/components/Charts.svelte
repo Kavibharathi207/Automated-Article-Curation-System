@@ -1,11 +1,18 @@
 <script>
-  import { weeklyActivity, pipelineStats } from '../stores/store.js';
+  import { weeklyActivity, pipelineStats, interestedBlogs } from '../stores/store.js';
 
   $: maxVal = Math.max(...$weeklyActivity.map(d => d.count), 1);
   const BAR_H = 80;
   // @ts-ignore
   function barH(v) { return Math.max(4, Math.round((v / maxVal) * BAR_H)); }
   $: hasActivity = $weeklyActivity.some(d => d.count > 0);
+
+  $: topTopics = (() => {
+    const counts = {};
+    $interestedBlogs.forEach(b => { counts[b.category] = (counts[b.category] || 0) + 1; });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  })();
+  $: maxTopic = topTopics.length ? topTopics[0][1] : 1;
 </script>
 
 <div class="chart-inner">
@@ -31,6 +38,25 @@
             </div>
           </div>
           <div class="bar-label">{d.day}</div>
+        </div>
+      {/each}
+    </div>
+  {/if}
+
+  {#if topTopics.length > 0}
+    <div class="divider"></div>
+    <div class="chart-head" style="margin-top:20px">
+      <span class="chart-heading">Top Interest Categories</span>
+      <span class="chart-summary">{$interestedBlogs.length} total interested</span>
+    </div>
+    <div class="topic-bars">
+      {#each topTopics as [cat, count]}
+        <div class="topic-row">
+          <span class="topic-label">{cat}</span>
+          <div class="topic-track">
+            <div class="topic-fill" style="width:{Math.round((count / maxTopic) * 100)}%"></div>
+          </div>
+          <span class="topic-count">{count}</span>
         </div>
       {/each}
     </div>
@@ -70,4 +96,14 @@
     font-size: 11px; color: var(--text-muted); white-space: nowrap;
   }
   .bar-label { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+
+  .divider { border: none; border-top: 1px solid var(--divider); margin: 4px 0; }
+
+  /* Topic bars */
+  .topic-bars { display: flex; flex-direction: column; gap: 10px; }
+  .topic-row  { display: flex; align-items: center; gap: 10px; }
+  .topic-label { font-size: 12px; color: var(--text-body); font-weight: 500; width: 110px; flex-shrink: 0; }
+  .topic-track { flex: 1; height: 5px; background: var(--divider); border-radius: 99px; overflow: hidden; }
+  .topic-fill  { height: 100%; background: var(--green); border-radius: 99px; transition: width 0.5s ease; }
+  .topic-count { font-size: 11px; color: var(--text-muted); font-weight: 600; width: 16px; text-align: right; flex-shrink: 0; }
 </style>

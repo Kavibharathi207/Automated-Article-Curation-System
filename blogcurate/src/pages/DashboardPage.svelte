@@ -5,6 +5,14 @@
 
   $: bookmarkedBlogs = mockBlogs.filter(b => $bookmarks.includes(b.id));
 
+  // Top categories from interested blogs
+  $: topCategories = (() => {
+    const counts = {};
+    $interestedBlogs.forEach(b => { counts[b.category] = (counts[b.category] || 0) + 1; });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  })();
+  $: maxCatCount = topCategories.length ? topCategories[0][1] : 1;
+
   $: stats = [
     { label: 'Scheduled',  page: 'scheduled',  value: $pipelineStats.scheduled,  color: 'var(--amber)',      bg: 'var(--amber-light)' },
     { label: 'Published',  page: 'published',  value: $pipelineStats.published,  color: 'var(--green)',      bg: 'var(--green-light)' },
@@ -151,6 +159,27 @@
   <div class="dash-card" style="margin-top:20px">
     <Charts />
   </div>
+
+  <!-- Most Selected Interests -->
+  {#if topCategories.length > 0}
+    <div class="dash-card" style="margin-top:20px">
+      <div class="card-head">
+        <span class="card-heading">Most Selected Interests</span>
+        <button class="ghost-link" on:click={() => currentPage.set('interested')}>View all →</button>
+      </div>
+      <div class="interest-bars">
+        {#each topCategories as [cat, count]}
+          <div class="interest-row">
+            <span class="interest-label">{cat}</span>
+            <div class="interest-track">
+              <div class="interest-fill" style="width:{Math.round((count / maxCatCount) * 100)}%"></div>
+            </div>
+            <span class="interest-count">{count}</span>
+          </div>
+        {/each}
+      </div>
+    </div>
+  {/if}
 
 </div>
 
@@ -338,4 +367,12 @@
     .dash-header { flex-direction: column; }
     .pipeline-bar-right { display: none; }
   }
+
+  /* Interest bars */
+  .interest-bars { display: flex; flex-direction: column; gap: 12px; }
+  .interest-row { display: flex; align-items: center; gap: 12px; }
+  .interest-label { font-size: 13px; color: var(--text-body); font-weight: 500; width: 120px; flex-shrink: 0; }
+  .interest-track { flex: 1; height: 6px; background: var(--divider); border-radius: 99px; overflow: hidden; }
+  .interest-fill { height: 100%; background: var(--green); border-radius: 99px; transition: width 0.5s ease; }
+  .interest-count { font-size: 12px; color: var(--text-muted); font-weight: 600; width: 20px; text-align: right; flex-shrink: 0; }
 </style>

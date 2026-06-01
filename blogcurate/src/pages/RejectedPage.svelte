@@ -1,5 +1,5 @@
 <script>
-  import { currentPage, rejectedIds, interestBlog } from '../stores/store.js';
+  import { currentPage, rejectedIds, interestBlog, selectedBlog, articleFrom } from '../stores/store.js';
   import { mockBlogs } from '../data/mockData.js';
 
   $: rejectedBlogs = mockBlogs.filter(b => $rejectedIds.includes(b.id));
@@ -7,6 +7,13 @@
   function restore(blog) {
     rejectedIds.update(r => r.filter(id => id !== blog.id));
     interestBlog(blog);
+  }
+
+  function openArticle(blog) {
+    selectedBlog.set(blog);
+    articleFrom.set('rejected');
+    currentPage.set('article');
+    window.scrollTo(0, 0);
   }
 </script>
 
@@ -32,8 +39,12 @@
     <div class="blog-list">
       {#each rejectedBlogs as blog}
         <div class="blog-row">
-          <img src={blog.image} alt="" class="blog-thumb" />
-          <div class="blog-body">
+          <!-- svelte-ignore a11y-click-events-have-key-events -->
+          <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+          <img src={blog.image} alt="" class="blog-thumb" style="cursor:pointer" on:click={() => openArticle(blog)} />
+          <div class="blog-body" style="cursor:pointer" on:click={() => openArticle(blog)}>
+          <!-- svelte-ignore a11y-click-events-have-key-events -->
+          <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
             <div class="blog-meta">
               <span class="blog-source">{blog.source}</span>
               <span class="meta-dot">·</span>
@@ -46,6 +57,7 @@
           </div>
           <div class="blog-actions">
             <button class="action-btn restore" on:click={() => restore(blog)}>Restore</button>
+            <button class="action-btn remove" on:click={() => rejectedIds.update(r => r.filter(id => id !== blog.id))}>Remove</button>
           </div>
         </div>
       {/each}
@@ -112,7 +124,7 @@
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
 
-  .blog-actions { flex-shrink: 0; }
+  .blog-actions { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
   .action-btn {
     display: inline-flex; align-items: center; justify-content: center;
     border: 1px solid var(--divider); background: var(--white);
@@ -121,6 +133,7 @@
     color: var(--text-body); white-space: nowrap;
   }
   .action-btn.restore:hover { background: var(--green-light); border-color: var(--green); color: var(--green-dark); }
+  .action-btn.remove:hover { border-color: var(--red); color: var(--red); }
 
   @media (max-width: 600px) {
     .blog-row { flex-direction: column; }

@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { currentPage, publishTime, timezone, schedulePost, searchQuery } from '../stores/store.js';
+  import { currentPage, publishTime, timezone, schedulePost, searchQuery, bilingual, interestedBlogs } from '../stores/store.js';
   import { mockGeneratedBlog } from '../data/mockData.js';
 
   let loading      = true;
@@ -136,6 +136,19 @@
     URL.revokeObjectURL(a.href);
   }
 
+  async function exportMarkdown() {
+    const md = `# ${blog.title}\n\n` +
+      blog.content.map(b => b.type === 'h2' ? `## ${b.text}` : b.text).join('\n\n');
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${blog.title.slice(0, 40).replace(/[^a-z0-9]/gi, '-')}.md`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  $: readingTime = Math.max(1, Math.ceil(wordCount / 200));
+
   function handleSchedule() {
     const [hh, mm] = $publishTime.split(':').map(Number);
     const d = new Date();
@@ -249,6 +262,7 @@
                 <span class="signal-pill {scorePillClass(relevanceScore)}">Relevance {relevanceScore}/10</span>
                 <span class="signal-pill {scorePillClass(innovationScore)}">Innovation {innovationScore}/10</span>
                 <span class="signal-pill {wcStatus === 'ok' ? 'ok' : 'warn'}">{wordCount} words</span>
+                <span class="signal-pill ok">{readingTime} min read</span>
                 {#if bannedFound.length > 0}
                   <span class="signal-pill warn">⚠ {bannedFound.length} flagged term{bannedFound.length > 1 ? 's' : ''}</span>
                 {/if}
@@ -321,7 +335,7 @@
             </div>
             <div class="info-row">
               <span class="info-label">Language</span>
-              <span class="info-val">English</span>
+              <span class="info-val">{$bilingual ? 'EN + FR' : 'English'}</span>
             </div>
           </div>
         </div>
@@ -339,9 +353,10 @@
               <button class="action-btn" on:click={copyMarkdown}>
                 {copied ? '✓ Copied!' : 'Copy Markdown'}
               </button>
-              <button class="action-btn" on:click={exportPDF}>Export as TXT</button>
+              <button class="action-btn" on:click={exportMarkdown}>Export .md</button>
+              <button class="action-btn" on:click={exportPDF}>Export .txt</button>
             {/if}
-            <button class="action-btn danger" on:click={() => currentPage.set('discover')}>Discard</button>
+            <button class="action-btn danger" on:click={() => { interestedBlogs.set([]); currentPage.set('discover'); }}>Remove All & Discard</button>
           </div>
         </div>
 

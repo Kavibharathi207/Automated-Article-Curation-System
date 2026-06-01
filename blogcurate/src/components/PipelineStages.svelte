@@ -1,19 +1,39 @@
 <script>
-  import { stageRuns } from '../stores/store.js';
-  // @ts-ignore
-  function fmt(ms) { return ms < 1000 ? `${ms}ms` : `${(ms/1000).toFixed(1)}s`; }
-  $: maxMs = $stageRuns.length ? Math.max(...$stageRuns.map(s => s.durationMs)) : 1;
+  import { runHistory } from '../stores/store.js';
+
+  /** @typedef {{ stage: number, name: string, durationMs: number, status: string }} StageRun */
+
+  /** @type {StageRun[]} */
+  const defaultStages = [
+    { stage: 1, name: 'Fetch Articles',   durationMs: 0, status: 'idle' },
+    { stage: 2, name: 'Score & Filter',   durationMs: 0, status: 'idle' },
+    { stage: 3, name: 'Generate Blog',    durationMs: 0, status: 'idle' },
+    { stage: 4, name: 'Publish',          durationMs: 0, status: 'idle' },
+  ];
+
+  /** @type {StageRun[]} */
+  const mockStages = [
+    { stage: 1, name: 'Fetch Articles',   durationMs: 1240, status: 'ok'      },
+    { stage: 2, name: 'Score & Filter',   durationMs: 3870, status: 'ok'      },
+    { stage: 3, name: 'Generate Blog',    durationMs: 8420, status: 'ok'      },
+    { stage: 4, name: 'Publish',          durationMs:  530, status: 'ok'      },
+  ];
+
+  $: stageRuns = $runHistory.length ? mockStages : defaultStages;
+
+  function fmt(/** @type {number} */ ms) { return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`; }
+  $: maxMs = stageRuns.some(s => s.durationMs > 0) ? Math.max(...stageRuns.map(s => s.durationMs)) : 1;
 </script>
 
 <div class="stages-inner">
   <div class="stages-heading">Last Run — Stage Breakdown</div>
-  {#if $stageRuns.length === 0}
+  {#if stageRuns.every(s => s.durationMs === 0)}
     <div class="empty-stages">
       <p class="empty-title">No pipeline runs yet</p>
       <p class="empty-sub">Trigger a run from the Admin Dashboard.</p>
     </div>
   {:else}
-    {#each $stageRuns as s}
+    {#each stageRuns as s}
       <div class="stage-row">
         <span class="stage-num">{s.stage}</span>
         <span class="stage-name">{s.name}</span>

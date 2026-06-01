@@ -8,7 +8,7 @@
   const steps = [
     {
       icon: '👋',
-      title: `Welcome, {name}!`,
+      title: 'Welcome, {name}!',
       subtitle: 'Your AI-powered blog curation workspace',
       desc: 'This quick tour will show you how to use the app in under 2 minutes. You can always revisit it from Settings.',
     },
@@ -59,7 +59,7 @@
   ];
 
   $: current = steps[step];
-  $: title   = current.title.replace('{name}', $user?.name?.split(' ')[0] || 'there');
+  $: title   = step === 0 ? current.title.replace('{name}', $user?.name?.split(' ')[0] || 'there') : current.title;
   $: isLast  = step === steps.length - 1;
   $: isFirst = step === 0;
   $: progress = (step / (steps.length - 1)) * 100;
@@ -69,6 +69,7 @@
 
   function finish() {
     user.update(u => {
+      if (!u) return u;
       const updated = { ...u, isNew: false };
       localStorage.setItem('bca_user', JSON.stringify(updated));
       return updated;
@@ -76,13 +77,13 @@
     dispatch('close');
   }
 
-  // @ts-ignore
+  /** @param {'home' | 'discover' | 'dashboard' | 'interested' | 'rejected' | 'scheduled' | 'published' | 'preview' | 'settings'} page */
   function goTo(page) { currentPage.set(page); finish(); }
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
-<div class="backdrop" on:click={finish}>
+<div class="backdrop" on:click={() => dispatch('close')}>
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="modal" on:click|stopPropagation>
@@ -212,7 +213,7 @@
   .step-icon {
     font-size: 40px; margin-bottom: 16px;
     animation: pop 0.3s ease;
-    display: block;
+
   }
   @keyframes pop {
     from { transform: scale(0.7); opacity: 0; }

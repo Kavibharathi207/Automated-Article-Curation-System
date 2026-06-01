@@ -5,6 +5,7 @@
   import RunHistory      from '../pages/admin/RunHistory.svelte';
   import ArticlesManager from '../pages/admin/ArticlesManager.svelte';
   import ThemeManager    from '../pages/admin/ThemeManager.svelte';
+  import EditorialProfilesManager from '../pages/admin/EditorialProfilesManager.svelte';
   import AdminSettings   from '../pages/admin/AdminSettings.svelte';
   import { onMount } from 'svelte';
 
@@ -21,6 +22,7 @@
     { page: 'runs',      label: 'Runs'       },
     { page: 'articles',  label: 'Articles'   },
     { page: 'themes',    label: 'Themes'     },
+    { page: 'profiles',  label: 'Profiles'   },
     { page: 'settings',  label: 'Settings'   },
   ];
 
@@ -85,6 +87,7 @@
         {:else if $currentAdminPage === 'runs'}     <RunHistory />
         {:else if $currentAdminPage === 'articles'} <ArticlesManager />
         {:else if $currentAdminPage === 'themes'}   <ThemeManager />
+        {:else if $currentAdminPage === 'profiles'} <EditorialProfilesManager />
         {:else if $currentAdminPage === 'settings'} <AdminSettings />
         {/if}
       </div>

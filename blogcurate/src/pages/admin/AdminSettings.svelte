@@ -308,7 +308,13 @@
   .fields { display: flex; flex-direction: column; }
   .field-row {
     display: flex; align-items: center; justify-content: space-between;
-    gap: 24px; padding: 14px 0; border-bottom: 1px solid var(--divider);
+    gap: 24px; padding: 14px 12px; border-bottom: 1px solid var(--divider);
+    border-radius: 6px; margin: 0 -12px;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+  .field-row:hover {
+    background: var(--off-white);
+    box-shadow: inset 2px 0 0 var(--text-black);
   }
   .field-row:last-child { border-bottom: none; }
   .field-label { font-size: 14px; font-weight: 500; color: var(--text-black); }

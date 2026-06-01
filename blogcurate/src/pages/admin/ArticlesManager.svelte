@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { articles, articlesLoading, fetchArticles, fetchThemes, adminThemes } from '../../stores/store.js';
+  import { articles, articlesLoading, fetchArticles, fetchThemes, adminThemes, currentAdminPage } from '../../stores/store.js';
 
   let themeFilter  = '';
   let statusFilter = '';
@@ -28,6 +28,10 @@
 
 <div class="articles-page" class:has-slide={slideOver}>
   <div class="page-hdr">
+    <button class="back-btn" on:click={() => currentAdminPage.set('dashboard')}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      Dashboard
+    </button>
     <h1 class="page-title">Articles</h1>
   </div>
   <div style="border-top:1px solid var(--divider);margin-bottom:24px"></div>
@@ -143,6 +147,13 @@
 {/if}
 
 <style>
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: none; border: none; cursor: pointer;
+    font-size: 13px; color: var(--text-muted); font-family: var(--sans);
+    padding: 0; margin-bottom: 12px; transition: color 0.15s;
+  }
+  .back-btn:hover { color: var(--text-black); }
   .articles-page { max-width: 900px; }
   .page-title { font-family: var(--serif); font-size: 28px; font-weight: 700; color: var(--text-black); margin-bottom: 24px; }
   .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 24px; }
@@ -154,11 +165,15 @@
   .article-row {
     display: flex; gap: 16px; align-items: flex-start;
     padding: 20px 0; border-bottom: 1px solid var(--divider);
-    cursor: pointer; transition: background 0.1s;
+    cursor: pointer; transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
     width: 100%; background: none; border-left: none; border-right: none; border-top: none;
     text-align: left; font-family: var(--sans);
   }
-  .article-row:hover { background: var(--off-white); margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
+  .article-row:hover {
+    background: var(--off-white); margin: 0 -16px;
+    padding-left: 16px; padding-right: 16px;
+    box-shadow: inset 2px 0 0 var(--text-black);
+  }
   .article-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: var(--radius); flex-shrink: 0; }
   .article-thumb.placeholder { background: var(--divider); }
   .article-body { flex: 1; min-width: 0; }

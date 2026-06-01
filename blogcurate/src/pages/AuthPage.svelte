@@ -1,14 +1,22 @@
 <script>
   import { login, signup, appMode } from '../stores/store.js';
 
-  let mode = 'login';
+  let mode = 'login'; // 'login' | 'signup' | 'forgot'
   let name = '', email = '', password = '';
-  let error = '', loading = false;
+  let error = '', success = '', loading = false;
 
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   async function submit() {
-    error = '';
+    error = ''; success = '';
+    if (mode === 'forgot') {
+      if (!email.trim() || !EMAIL_RE.test(email.trim())) { error = 'Enter a valid email address.'; return; }
+      loading = true;
+      await new Promise(r => setTimeout(r, 700));
+      success = 'If this email is registered, a reset link has been sent.';
+      loading = false;
+      return;
+    }
     if (mode === 'signup' && !name.trim()) { error = 'Name is required.'; return; }
     if (!email.trim()) { error = 'Email is required.'; return; }
     if (!EMAIL_RE.test(email.trim())) { error = 'Please enter a valid email address.'; return; }
@@ -22,6 +30,8 @@
     if (!result.ok) error = result.error;
     loading = false;
   }
+
+  function switchMode(m) { mode = m; error = ''; success = ''; name = ''; password = ''; }
 </script>
 
 <div class="auth-page">
@@ -38,40 +48,62 @@
 
     <div class="auth-divider"></div>
 
-    <h2>{mode === 'login' ? 'Sign in' : 'Create account'}</h2>
-    <p>{mode === 'login' ? 'Welcome back to your workspace.' : 'Start curating smarter content.'}</p>
-
-    <form on:submit|preventDefault={submit}>
-      {#if mode === 'signup'}
+    {#if mode === 'forgot'}
+      <h2>Reset password</h2>
+      <p>Enter your email and we'll send a reset link.</p>
+      <form on:submit|preventDefault={submit}>
         <div class="form-group">
-          <label class="form-label" for="auth-name">Full Name</label>
-          <input id="auth-name" bind:value={name} placeholder="Your full name" autocomplete="name" />
+          <label class="form-label" for="forgot-email">Email</label>
+          <input id="forgot-email" type="email" bind:value={email} placeholder="you@example.com" autocomplete="email" />
         </div>
-      {/if}
-      <div class="form-group">
-        <label class="form-label" for="auth-email">Email</label>
-        <input id="auth-email" type="email" bind:value={email} placeholder="you@example.com" autocomplete="email" />
+        {#if error}<div class="form-error">{error}</div>{/if}
+        {#if success}<div class="form-success">{success}</div>{/if}
+        <button class="btn btn-primary btn-full" style="margin-top:12px" disabled={loading}>
+          {#if loading}<span class="spinner" style="width:14px;height:14px;border-width:2px;border-top-color:currentColor"></span>{/if}
+          {loading ? 'Sending…' : 'Send reset link'}
+        </button>
+      </form>
+      <div class="auth-switch">
+        <button on:click={() => switchMode('login')}>← Back to Sign in</button>
       </div>
-      <div class="form-group">
-        <label class="form-label" for="auth-password">Password</label>
-        <input id="auth-password" type="password" bind:value={password} placeholder="••••••••" autocomplete="current-password" />
-      </div>
-      {#if error}
-        <div class="form-error">{error}</div>
-      {/if}
-      <button class="btn btn-primary btn-full" style="margin-top:12px" disabled={loading}>
-        {#if loading}<span class="spinner" style="width:14px;height:14px;border-width:2px;border-top-color:currentColor"></span>{/if}
-        {loading ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
-      </button>
-    </form>
 
-    <div class="auth-switch">
-      {#if mode === 'login'}
-        New here? <button on:click={() => { mode = 'signup'; error = ''; }}>Create account</button>
-      {:else}
-        Already have an account? <button on:click={() => { mode = 'login'; error = ''; }}>Sign in</button>
-      {/if}
-    </div>
+    {:else}
+      <h2>{mode === 'login' ? 'Sign in' : 'Create account'}</h2>
+      <p>{mode === 'login' ? 'Welcome back to your workspace.' : 'Start curating smarter content.'}</p>
+
+      <form on:submit|preventDefault={submit}>
+        {#if mode === 'signup'}
+          <div class="form-group">
+            <label class="form-label" for="auth-name">Full Name</label>
+            <input id="auth-name" bind:value={name} placeholder="Your full name" autocomplete="name" />
+          </div>
+        {/if}
+        <div class="form-group">
+          <label class="form-label" for="auth-email">Email</label>
+          <input id="auth-email" type="email" bind:value={email} placeholder="you@example.com" autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="auth-password">Password</label>
+          <input id="auth-password" type="password" bind:value={password} placeholder="••••••••" autocomplete="current-password" />
+          {#if mode === 'login'}
+            <button type="button" class="forgot-link" on:click={() => switchMode('forgot')}>Forgot password?</button>
+          {/if}
+        </div>
+        {#if error}<div class="form-error">{error}</div>{/if}
+        <button class="btn btn-primary btn-full" style="margin-top:12px" disabled={loading}>
+          {#if loading}<span class="spinner" style="width:14px;height:14px;border-width:2px;border-top-color:currentColor"></span>{/if}
+          {loading ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
+        </button>
+      </form>
+
+      <div class="auth-switch">
+        {#if mode === 'login'}
+          New here? <button on:click={() => switchMode('signup')}>Create account</button>
+        {:else}
+          Already have an account? <button on:click={() => switchMode('login')}>Sign in</button>
+        {/if}
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -106,6 +138,18 @@
   .form-group { margin-bottom: 14px; }
   .form-label { display: block; font-size: 13px; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; }
   .form-error { font-size: 13px; color: var(--red); margin-top: 8px; }
+  .form-success {
+    font-size: 13px; color: var(--green-dark); background: var(--green-light);
+    border: 1px solid var(--green); border-radius: 6px;
+    padding: 10px 14px; margin-top: 8px; line-height: 1.5;
+  }
+  .forgot-link {
+    display: block; margin-top: 6px; background: none; border: none;
+    cursor: pointer; font-size: 12px; color: var(--text-muted);
+    font-family: var(--sans); padding: 0; text-align: right; width: 100%;
+    transition: color 0.15s;
+  }
+  .forgot-link:hover { color: var(--green); }
   .auth-switch {
     text-align: center; margin-top: 20px;
     font-size: 14px; color: var(--text-muted);

@@ -14,6 +14,23 @@
 
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+  // Preferred categories — persisted per user via store
+  const ALL_CATEGORIES = ['AI', 'Engineering', 'Startups', 'Healthcare', 'Sustainability', 'Security', 'Web Dev', 'Future of Work'];
+
+  function loadPref(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; } catch { return fallback; }
+  }
+  function savePref(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+
+  let prefCategories = loadPref(`bca_${$user?.email}_prefcats`, []);
+  let pubFrequency   = loadPref(`bca_${$user?.email}_pubfreq`, 'daily');
+
+  function toggleCat(cat) {
+    prefCategories = prefCategories.includes(cat)
+      ? prefCategories.filter(c => c !== cat)
+      : [...prefCategories, cat];
+  }
+
   function replayTour() { showTour = true; }
 
   function save() {
@@ -21,6 +38,8 @@
     if (!displayName.trim()) { saveError = 'Display name cannot be empty.'; return; }
     if (!EMAIL_RE.test(displayEmail.trim())) { saveError = 'Please enter a valid email address.'; return; }
     updateUser(displayName.trim(), displayEmail.trim());
+    savePref(`bca_${$user?.email}_prefcats`, prefCategories);
+    savePref(`bca_${$user?.email}_pubfreq`, pubFrequency);
     saved = true;
     setTimeout(() => saved = false, 2000);
   }
@@ -89,6 +108,15 @@
             <option value="UTC">UTC</option>
           </select>
         </div>
+        <div class="field-group">
+          <label class="field-label" for="pub-freq">Publishing Frequency</label>
+          <select id="pub-freq" bind:value={pubFrequency}>
+            <option value="daily">Daily — every day at publish time</option>
+            <option value="weekdays">Weekdays only — Mon–Fri</option>
+            <option value="weekly">Weekly — once per week</option>
+            <option value="manual">Manual — only when I schedule</option>
+          </select>
+        </div>
         <div class="toggle-row">
           <div class="toggle-info">
             <div class="toggle-label">Auto Publish</div>
@@ -96,6 +124,29 @@
           </div>
           <button class="toggle" class:on={$autoPublish} aria-label="Toggle auto publish" on:click={() => autoPublish.update(v => !v)}></button>
         </div>
+      </section>
+
+      <!-- Preferred Categories -->
+      <section class="settings-card">
+        <h2 class="card-heading">Preferred Categories</h2>
+        <p class="card-desc">Select topics you want to prioritise in your feed and AI generation.</p>
+        <div class="cat-chips">
+          {#each ALL_CATEGORIES as cat}
+            <button
+              class="cat-chip"
+              class:selected={prefCategories.includes(cat)}
+              on:click={() => toggleCat(cat)}
+            >
+              {#if prefCategories.includes(cat)}
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>
+              {/if}
+              {cat}
+            </button>
+          {/each}
+        </div>
+        {#if prefCategories.length > 0}
+          <p class="cat-hint">{prefCategories.length} categor{prefCategories.length === 1 ? 'y' : 'ies'} selected</p>
+        {/if}
       </section>
 
     </div>
@@ -267,6 +318,22 @@
   }
   .profile-name { font-size: 15px; font-weight: 600; color: var(--text-black); }
   .profile-email { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+  /* Card description */
+  .card-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 14px; margin-top: -8px; line-height: 1.5; }
+
+  /* Category chips */
+  .cat-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .cat-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 6px 14px; border-radius: 100px;
+    font-size: 13px; font-weight: 500; font-family: var(--sans);
+    border: 1px solid var(--divider); background: var(--white);
+    color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+  }
+  .cat-chip:hover { border-color: var(--divider-strong); color: var(--text-black); }
+  .cat-chip.selected { background: var(--text-black); color: #fff; border-color: var(--text-black); }
+  .cat-hint { font-size: 12px; color: var(--green-dark); font-weight: 500; }
 
   /* Status pills */
   .status-pill {

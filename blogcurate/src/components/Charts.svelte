@@ -8,8 +8,12 @@
   $: hasActivity = $weeklyActivity.some(d => d.count > 0);
 
   $: topTopics = (() => {
+    /** @type {Record<string, number>} */
     const counts = {};
-    $interestedBlogs.forEach(b => { counts[b.category] = (counts[b.category] || 0) + 1; });
+    $interestedBlogs.forEach(b => {
+      if (!b.category) return;
+      counts[b.category] = (counts[b.category] || 0) + 1;
+    });
     return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
   })();
   $: maxTopic = topTopics.length ? topTopics[0][1] : 1;

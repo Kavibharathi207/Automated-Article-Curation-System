@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { runHistory, runsLoading, fetchRuns } from '../../stores/store.js';
+  import { runHistory, runsLoading, fetchRuns, currentAdminPage } from '../../stores/store.js';
 
   let expandedId = null;
 
@@ -20,6 +20,10 @@
   function toggle(id) { expandedId = expandedId === id ? null : id; }
 </script>
 
+<button class="back-btn" on:click={() => currentAdminPage.set('dashboard')}>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+  Dashboard
+</button>
 <h1 class="page-title">Run history</h1>
 <div style="border-top:1px solid var(--divider);margin-bottom:32px"></div>
 
@@ -87,6 +91,13 @@
 {/if}
 
 <style>
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: none; border: none; cursor: pointer;
+    font-size: 13px; color: var(--text-muted); font-family: var(--sans);
+    padding: 0; margin-bottom: 12px; transition: color 0.15s;
+  }
+  .back-btn:hover { color: var(--text-black); }
   .page-title {
     font-family: var(--serif); font-size: 28px; font-weight: 700;
     color: var(--text-black); margin-bottom: 24px;
@@ -114,7 +125,8 @@
     color: var(--text-body); font-family: var(--sans); vertical-align: top;
   }
   .run-row { cursor: pointer; }
-  .run-row:hover td { background: var(--off-white); }
+  .run-row:hover td { background: var(--off-white); border-color: var(--divider-strong); }
+  .run-row:hover td:first-child { border-left: 2px solid var(--text-black); padding-left: 14px; }
   td.num { text-align: right; font-variant-numeric: tabular-nums; }
   td.pub { font-weight: 500; color: var(--text-black); }
 

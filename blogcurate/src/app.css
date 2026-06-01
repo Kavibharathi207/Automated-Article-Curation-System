@@ -29,6 +29,12 @@
   --sans:           -apple-system, 'Helvetica Neue', Arial, sans-serif;
 
   --radius:         4px;
+
+  /* Admin page aliases — map to user design system */
+  --text-primary:   #242424;
+  --text-secondary: #6B6B6B;
+  --bg-primary:     #FFFFFF;
+  --bg-secondary:   #F9F9F9;
 }
 
 /* ── Base ── */
@@ -196,6 +202,12 @@ hr, .divider { border: none; border-top: 1px solid var(--divider); margin: 0; }
   --amber-light:    #2D2010;
   --black:          #0A0A0A;
   --black-soft:     #141414;
+
+  /* Admin aliases — dark mode */
+  --text-primary:   #F0F0F0;
+  --text-secondary: #9A9A9A;
+  --bg-primary:     #1A1A1A;
+  --bg-secondary:   #242424;
 }
 .dark body, .dark { background: var(--white); color: var(--text-body); }
 

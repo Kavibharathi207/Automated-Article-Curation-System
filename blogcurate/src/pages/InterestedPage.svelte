@@ -1,11 +1,18 @@
 <script>
-  import { currentPage, interestedBlogs, rejectBlog } from '../stores/store.js';
+  import { currentPage, interestedBlogs, rejectBlog, selectedBlog, articleFrom } from '../stores/store.js';
 
   let categoryFilter = 'All';
 
   $: categories = ['All', ...new Set($interestedBlogs.map(b => b.category))];
   $: filtered = categoryFilter === 'All' ? $interestedBlogs : $interestedBlogs.filter(b => b.category === categoryFilter);
   $: progress = $interestedBlogs.length;
+
+  function openArticle(blog) {
+    selectedBlog.set(blog);
+    articleFrom.set('interested');
+    currentPage.set('article');
+    window.scrollTo(0, 0);
+  }
 </script>
 
 <div class="list-wrap">
@@ -69,9 +76,11 @@
     <div class="blog-list">
       {#each filtered as blog}
         <div class="blog-row">
-          <img src={blog.image} alt="" class="blog-thumb" />
+          <img src={blog.image} alt="" class="blog-thumb" style="cursor:pointer" on:click={() => openArticle(blog)} />
           <div class="blog-body">
-            <div class="blog-meta">
+            <!-- svelte-ignore a11y-click-events-have-key-events -->
+            <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+            <div class="blog-meta" on:click={() => openArticle(blog)} style="cursor:pointer">
               <span class="blog-source">{blog.source}</span>
               <span class="meta-dot">·</span>
               <span class="blog-time">{blog.readTime}</span>

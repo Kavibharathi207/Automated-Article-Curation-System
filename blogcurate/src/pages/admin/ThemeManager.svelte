@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { adminThemes, themesLoading, fetchThemes, calibrateTheme, calibratingId } from '../../stores/store.js';
+  import { adminThemes, themesLoading, fetchThemes, calibrateTheme, calibratingId, currentAdminPage } from '../../stores/store.js';
 
   let showAddModal = false;
   let newThemeName = '';
@@ -20,6 +20,10 @@
   function closeModal() { showAddModal = false; newThemeName = ''; newThemeLang = 'EN'; newKeywords = []; kwInput = ''; }
 </script>
 
+<button class="back-btn" on:click={() => currentAdminPage.set('dashboard')}>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+  Dashboard
+</button>
 <h1 class="page-title">Themes</h1>
 <div style="border-top:1px solid var(--divider);margin-bottom:32px"></div>
 
@@ -146,6 +150,13 @@
 {/if}
 
 <style>
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: none; border: none; cursor: pointer;
+    font-size: 13px; color: var(--text-muted); font-family: var(--sans);
+    padding: 0; margin-bottom: 12px; transition: color 0.15s;
+  }
+  .back-btn:hover { color: var(--text-black); }
   .page-title { font-family: var(--serif); font-size: 28px; font-weight: 700; color: var(--text-black); margin-bottom: 24px; }
 
   .skel-list { display: flex; flex-direction: column; }
@@ -154,7 +165,13 @@
   .theme-list { display: flex; flex-direction: column; }
   .theme-row {
     display: flex; align-items: center; justify-content: space-between; gap: 24px;
-    padding: 24px 0; border-bottom: 1px solid var(--divider);
+    padding: 20px 16px; border-bottom: 1px solid var(--divider);
+    border-radius: 8px; margin: 0 -16px;
+    transition: background 0.15s, box-shadow 0.15s, border-color 0.15s;
+  }
+  .theme-row:hover {
+    background: var(--off-white);
+    box-shadow: inset 2px 0 0 var(--text-black);
   }
   .theme-body { flex: 1; min-width: 0; }
   .theme-name { font-size: 16px; font-weight: 500; color: var(--text-black); margin-bottom: 6px; }

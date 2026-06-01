@@ -16,7 +16,7 @@
   $: stats = [
     { label: 'Scheduled',  page: 'scheduled',  value: $pipelineStats.scheduled,  color: 'var(--amber)',      bg: 'var(--amber-light)' },
     { label: 'Published',  page: 'published',  value: $pipelineStats.published,  color: 'var(--green)',      bg: 'var(--green-light)' },
-    { label: 'Interested', page: 'interested', value: $pipelineStats.interested, color: 'var(--text-black)', bg: 'var(--off-white)'   },
+    { label: 'Drafts',     page: 'interested', value: $pipelineStats.interested, color: 'var(--text-black)', bg: 'var(--off-white)'   },
     { label: 'Rejected',   page: 'rejected',   value: $pipelineStats.rejected,   color: 'var(--red)',        bg: 'var(--red-light)'   },
   ];
 
@@ -123,7 +123,7 @@
       <div class="card-head">
         <span class="card-heading">Bookmarked Blogs</span>
         {#if bookmarkedBlogs.length > 0}
-          <button class="ghost-link" on:click={() => currentPage.set('discover')}>View all →</button>
+          <button class="ghost-link" on:click={() => currentPage.set('bookmarks')}>View all →</button>
         {/if}
       </div>
 
@@ -136,7 +136,7 @@
       {:else}
         <div class="bookmark-list">
           {#each bookmarkedBlogs.slice(0,4) as blog}
-            <button class="bookmark-row" on:click={() => currentPage.set('discover')}>
+            <button class="bookmark-row" on:click={() => currentPage.set('bookmarks')}>
               <img src={blog.image} alt={blog.title} class="bookmark-thumb" />
               <div class="bookmark-body">
                 <div class="bookmark-title">{blog.title}</div>
@@ -146,7 +146,7 @@
             </button>
           {/each}
           {#if bookmarkedBlogs.length > 4}
-            <button class="ghost-link" style="margin-top:8px;width:100%;text-align:center" on:click={() => currentPage.set('discover')}>
+            <button class="ghost-link" style="margin-top:8px;width:100%;text-align:center" on:click={() => currentPage.set('bookmarks')}>
               +{bookmarkedBlogs.length - 4} more →
             </button>
           {/if}

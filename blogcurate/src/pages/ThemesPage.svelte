@@ -1,5 +1,18 @@
 <script>
-  import { currentPage, themes } from '../stores/store.js';
+  import { currentPage } from '../stores/store.js';
+  import { generateSearchQueries, currentWeekSeed } from '../data/mockData.js';
+
+  const weekSeed = currentWeekSeed();
+
+  const themes = [
+    { id: 'tech-innovation', name: 'Tech Innovation', language: 'EN', lastCalibrated: '2025-01-13', spirit: 'Emerging technology that changes how industries operate', keywords: ['AI', 'robotics', 'semiconductor', 'quantum'] },
+    { id: 'startup-funding', name: 'Startup Funding',  language: 'EN', lastCalibrated: '2025-01-13', spirit: 'Capital flows and founder stories shaping the next wave', keywords: ['Series A', 'venture capital', 'ARR', 'founder'] },
+    { id: 'ai-research',     name: 'AI Research',      language: 'EN', lastCalibrated: '2025-01-13', spirit: 'Frontier research pushing the boundaries of machine intelligence', keywords: ['LLM', 'neural network', 'benchmark', 'open-source'] },
+    { id: 'sustainability',  name: 'Durabilité',       language: 'FR', lastCalibrated: '2025-01-13', spirit: "L'innovation verte qui redéfinit notre rapport à l'énergie", keywords: ['hydrogène', 'solaire', 'VE', 'capture carbone'] },
+    { id: 'future-of-work',  name: 'Avenir du Travail', language: 'FR', lastCalibrated: '2025-01-13', spirit: 'Comment les organisations et les individus réinventent le travail', keywords: ['télétravail', 'productivité', 'RH', 'automatisation'] },
+  ];
+
+  let expandedId = null;
 
   function daysSince(iso) {
     return Math.floor((Date.now() - new Date(iso)) / 86400000);
@@ -19,8 +32,9 @@
   </div>
 
   <div class="themes-grid">
-    {#each $themes as theme}
+    {#each themes as theme}
       {@const days = daysSince(theme.lastCalibrated)}
+      {@const queries = generateSearchQueries(theme.name, theme.language, weekSeed)}
       <div class="theme-card">
         <div class="theme-card-top">
           <div class="theme-name">{theme.name}</div>
@@ -42,6 +56,25 @@
           {#each theme.keywords as kw}
             <span class="badge badge-theme">{kw}</span>
           {/each}
+        </div>
+
+        <!-- Generated search queries -->
+        <div class="queries-section">
+          <button class="queries-toggle" on:click={() => expandedId = expandedId === theme.id ? null : theme.id}>
+            <span>5 Search Queries</span>
+            <span class="toggle-arrow" class:open={expandedId === theme.id}>▾</span>
+          </button>
+          {#if expandedId === theme.id}
+            <div class="queries-list">
+              {#each queries as q}
+                <div class="query-item">
+                  <span class="query-type-label">{q.typeLabel}</span>
+                  <span class="query-text">{q.queryClean}</span>
+                </div>
+              {/each}
+              <div class="novelty-note">🔄 Rotates weekly · Week #{weekSeed % 52 + 1}</div>
+            </div>
+          {/if}
         </div>
 
         <div class="theme-footer">
@@ -95,6 +128,37 @@
     padding-top: 14px; border-top: 1px solid var(--divider);
   }
   .theme-date { font-size: 12px; color: var(--text-muted); }
+
+  /* Queries section */
+  .queries-section { margin-bottom: 14px; }
+  .queries-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; background: var(--off-white); border: 1px solid var(--divider);
+    border-radius: 6px; padding: 7px 12px; cursor: pointer;
+    font-size: 12px; font-weight: 600; color: var(--text-muted);
+    font-family: var(--sans); transition: background 0.15s;
+  }
+  .queries-toggle:hover { background: var(--divider); color: var(--text-black); }
+  .toggle-arrow { transition: transform 0.2s; display: inline-block; }
+  .toggle-arrow.open { transform: rotate(180deg); }
+  .queries-list {
+    margin-top: 6px; border: 1px solid var(--divider);
+    border-radius: 6px; overflow: hidden;
+  }
+  .query-item {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 9px 12px; border-bottom: 1px solid var(--divider);
+  }
+  .query-item:last-of-type { border-bottom: none; }
+  .query-type-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--text-muted);
+  }
+  .query-text { font-size: 12px; color: var(--text-black); line-height: 1.4; }
+  .novelty-note {
+    font-size: 11px; color: var(--text-muted); padding: 8px 12px;
+    background: var(--off-white); border-top: 1px solid var(--divider);
+  }
 
   @media (max-width: 600px) {
     .themes-grid { grid-template-columns: 1fr; }

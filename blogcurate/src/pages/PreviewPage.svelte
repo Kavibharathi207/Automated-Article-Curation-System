@@ -40,7 +40,7 @@
   }
 
   onMount(() => {
-    setTimeout(() => { loading = false; startTyping(); }, 1800);
+    setTimeout(() => { loading = false; startTyping(); }, 300);
     interval = setInterval(tick, 1000);
     tick();
   });
@@ -54,8 +54,7 @@
     const diff = Math.max(0, Math.floor((target - new Date()) / 1000));
     countdown = { h: Math.floor(diff / 3600), m: Math.floor((diff % 3600) / 60), s: diff % 60 };
   }
-  $: tick(), $publishTime;
-  function pad(n) { return String(n).padStart(2, '0'); }
+  $: $publishTime, tick();
 
   const regenerateVariants = [
     {
@@ -89,7 +88,7 @@
 
   async function regenerate() {
     regenerating = true; editing = false;
-    await new Promise(r => setTimeout(r, 1600));
+    await new Promise(r => setTimeout(r, 300));
     const v = regenerateVariants[variantIndex % regenerateVariants.length];
     variantIndex++;
     blog = { ...blog, title: v.title, content: v.content, qualityScore: +(8 + Math.random()).toFixed(1), wordCount: 380 + Math.floor(Math.random() * 80) };
@@ -154,7 +153,7 @@
     const d = new Date();
     d.setHours(hh, mm, 0, 0);
     if (d <= new Date()) d.setDate(d.getDate() + 1);
-    schedulePost({ id: Date.now(), title: blog.title, scheduledAt: d.toISOString(), status: 'scheduled', category: blog.category, cmsStatus: 'pending' });
+    schedulePost({ id: Date.now(), title: blog.title, scheduledAt: d.toISOString(), status: 'scheduled', category: blog.category, cmsStatus: 'pending', coverImage: blog.coverImage, summary: blog.content.find(b => b.type === 'p')?.text || '' });
     published = true;
   }
 </script>

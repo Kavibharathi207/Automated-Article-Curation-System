@@ -26,7 +26,7 @@
     <div class="post-list">
       {#each [...posts].reverse() as post}
         <div class="post-row">
-          <img src={mockGeneratedBlog.coverImage} alt="" class="post-thumb" />
+          <img src={post.coverImage || mockGeneratedBlog.coverImage} alt="" class="post-thumb" />
           <div class="post-body">
             <div class="post-meta">
               <span class="post-status">Published</span>
@@ -36,7 +36,7 @@
               <span class="post-time">{new Date(post.scheduledAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</span>
             </div>
             <h2 class="post-title">{post.title}</h2>
-            <p class="post-summary">{mockGeneratedBlog.content[1]?.text ?? ''}</p>
+            <p class="post-summary">{post.summary || mockGeneratedBlog.content[1]?.text || ''}</p>
           </div>
           <button class="action-btn" on:click={() => currentPage.set('preview')}>View</button>
         </div>

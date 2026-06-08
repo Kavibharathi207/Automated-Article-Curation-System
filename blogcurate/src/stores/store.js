@@ -80,7 +80,7 @@ export const API_BASE = 'http://localhost:8080/api/pipeline';
 const API_KEY = import.meta.env.VITE_ADMIN_KEY ?? '';
 
 /* App mode */
-export const appMode = writable(/** @type {'landing' | 'admin' | 'user'} */ ('landing'));
+export const appMode = writable(/** @type {'landing' | 'admin' | 'user' | 'auth-signin' | 'auth-signup' | 'auth-write' | 'about' | 'help' | 'terms' | 'privacy' | 'rules' | 'status' | 'careers' | 'blog' | 'tts'} */ ('landing'));
 
 /* Theme */
 const _savedDark = localStorage.getItem('dark');
@@ -101,13 +101,16 @@ function ukey(email, suffix) {
   return `bca_${email.trim().toLowerCase()}_${suffix}`;
 }
 
-/** @param {string} password */
-function hashPassword(password) {
-  let hash = 0;
-  for (let i = 0; i < password.length; i++) {
-    hash = (Math.imul(31, hash) + password.charCodeAt(i)) | 0;
-  }
-  return hash.toString(36);
+/**
+ * @param {string} password
+ * @returns {Promise<string>}
+ */
+async function hashPassword(password) {
+  const buf = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(password)
+  );
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 /* Per-user stores */
@@ -117,6 +120,7 @@ export const bookmarks = writable(/** @type {number[]} */ ([]));
 export const scheduledPosts = writable(/** @type {BlogItem[]} */ ([]));
 export const recentSearches = writable(/** @type {string[]} */ ([]));
 export const activityLog = writable(/** @type {{ icon: string, text: string, sub: string, time: number }[]} */ ([]));
+export const readingHistory = writable(/** @type {any[]} */ ([]));
 export const publishTime = writable('02:00');
 export const timezone = writable('Asia/Kolkata');
 export const autoPublish = writable(true);
@@ -202,18 +206,21 @@ if (storedUser?.email) loadUserData(storedUser.email);
 /**
  * @param {string} email
  * @param {string} password
+ * @returns {Promise<{ok: boolean, error?: string}>}
  */
-export function login(email, password) {
+export async function login(email, password) {
   const stored = JSON.parse(localStorage.getItem('bca_accounts') || '{}');
   const key = email.trim().toLowerCase();
   const account = stored[key] ?? Object.values(stored).find(a => (a.email ?? '').toLowerCase() === key);
-  if (!account || account.passwordHash !== hashPassword(password)) return { ok: false, error: 'Invalid email or password.' };
+  const hash = await hashPassword(password);
+  if (!account || account.passwordHash !== hash) return { ok: false, error: 'Invalid email or password.' };
 
   const u = { name: account.name, email: account.email, avatar: '🧑', isNew: false };
   localStorage.setItem('bca_user', JSON.stringify(u));
   user.set(u);
   userAuthed.set(true);
   loadUserData(u.email);
+  appMode.set('user');
   currentPage.set('home');
   return { ok: true };
 }
@@ -222,13 +229,15 @@ export function login(email, password) {
  * @param {string} name
  * @param {string} email
  * @param {string} password
+ * @returns {Promise<{ok: boolean, error?: string}>}
  */
-export function signup(name, email, password) {
+export async function signup(name, email, password) {
   const stored = JSON.parse(localStorage.getItem('bca_accounts') || '{}');
   const key = email.trim().toLowerCase();
   if (stored[key]) return { ok: false, error: 'An account with this email already exists.' };
 
-  stored[key] = { name, email: key, passwordHash: hashPassword(password) };
+  const passwordHash = await hashPassword(password);
+  stored[key] = { name, email: key, passwordHash };
   localStorage.setItem('bca_accounts', JSON.stringify(stored));
 
   const u = { name, email: key, avatar: '🧑', isNew: true };
@@ -236,6 +245,7 @@ export function signup(name, email, password) {
   user.set(u);
   userAuthed.set(true);
   loadUserData(u.email);
+  appMode.set('user');
   currentPage.set('home');
   return { ok: true };
 }
@@ -254,17 +264,22 @@ export function logout() {
  * @param {string} email
  */
 export function updateUser(name, email) {
+  const newEmail = email?.trim().toLowerCase();
   user.update((u) => {
     if (!u) return u;
-    const updated = { ...u, name, email };
+    const updated = { ...u, name, email: newEmail || u.email };
     localStorage.setItem('bca_user', JSON.stringify(updated));
     return updated;
   });
+  if (newEmail && newEmail !== _currentEmail) {
+    _currentEmail = newEmail;
+    loadUserData(newEmail);
+  }
   showToast('Profile saved', 'success');
 }
 
 /* Navigation */
-export const currentPage = writable(/** @type {'home' | 'discover' | 'dashboard' | 'interested' | 'rejected' | 'scheduled' | 'published' | 'preview' | 'settings'} */ ('home'));
+export const currentPage = writable(/** @type {'home' | 'discover' | 'dashboard' | 'interested' | 'rejected' | 'scheduled' | 'published' | 'preview' | 'settings' | 'bookmarks' | 'article'} */ ('home'));
 
 /* Toasts */
 export const toasts = writable(/** @type {ToastItem[]} */ ([]));
@@ -300,6 +315,14 @@ export const articleFrom = writable(/** @type {string} */ ('discover'));
 export function addRecentSearch(term) {
   recentSearches.update((rs) => [term, ...rs.filter((r) => r !== term)].slice(0, 8));
   logActivity('🔍', `Searched for "${term}"`, 'Search');
+}
+
+/** @param {any} blog */
+export function logRead(blog) {
+  readingHistory.update((h) => {
+    const filtered = h.filter(b => b.id !== blog.id);
+    return [{ ...blog, readAt: Date.now() }, ...filtered].slice(0, 20);
+  });
 }
 
 /* Curation actions */

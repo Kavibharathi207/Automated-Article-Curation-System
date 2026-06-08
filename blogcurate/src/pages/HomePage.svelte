@@ -1,634 +1,576 @@
 <script>
-  import { currentPage, searchQuery, recentSearches, addRecentSearch, pipelineStats, interestedBlogs, scheduledPosts, bookmarks, activityLog } from '../stores/store.js';
-  import { trendingTopics, generateSearchQueries, currentWeekSeed } from '../data/mockData.js';
+  import {
+    currentPage, interestedBlogs, scheduledPosts, bookmarks, activityLog,
+    pipelineStats, rejectedIds, rejectBlog, interestBlog, toggleBookmark,
+    selectedBlog, articleFrom, logRead
+  } from '../stores/store.js';
+  import { mockBlogs } from '../data/mockData.js';
 
-  let query = '';
-  let lang = 'EN';
-  let activeTopic = null;
-  let weekSeed = currentWeekSeed();
-  let generating = false;
-  $: queries = activeTopic ? generateSearchQueries(activeTopic, lang, weekSeed) : [];
+  let activeTab = 'foryou';
+  let cardLang = {};  // { [blogId]: 'EN' | 'FR' }
 
-  const typeIcons = {
-    innovation: '📰',
-    academic:   '🎓',
-    funding:    '💰',
-    patent:     '📋',
-    press:      '📣',
-  };
-
-  function search(q) {
-    const term = (q || query).trim();
-    if (!term) return;
-    addRecentSearch(term);
-    searchQuery.set(term);
-    currentPage.set('discover');
+  function getTitle(blog, lang) {
+    if (lang === 'FR') {
+      if (blog.lang === 'FR') return blog.title;
+      return blog.titleFR || blog.title;
+    }
+    if (blog.lang === 'FR') return blog.titleEN || blog.title;
+    return blog.title;
+  }
+  function getSummary(blog, lang) {
+    if (lang === 'FR') {
+      if (blog.lang === 'FR') return blog.summary;
+      return blog.summaryFR || blog.summary;
+    }
+    if (blog.lang === 'FR') return blog.summaryEN || blog.summary;
+    return blog.summary;
   }
 
-  function selectTopic(t) {
-    activeTopic = activeTopic === t ? null : t;
+  $: interestedIds      = $interestedBlogs.map(b => b.id);
+  $: followedCategories = [...new Set($interestedBlogs.map(b => b.category).filter(Boolean))];
+
+  // For You: personalized — sorted by user interests/followed categories
+  $: forYouBlogs = (() => {
+    const pool = [...mockBlogs];
+    if (!followedCategories.length) return pool;
+    const matched   = pool.filter(b => followedCategories.includes(b.category));
+    const unmatched = pool.filter(b => !followedCategories.includes(b.category));
+    return [...matched, ...unmatched];
+  })();
+
+  // Featured: editor-curated — fixed set of trending/editor-pick/evergreen blogs
+  const featuredIds = [8, 1, 14, 17, 7, 18, 11, 13, 20, 4];
+  $: featuredBlogs = featuredIds.map(id => mockBlogs.find(b => b.id === id)).filter(Boolean);
+
+  function getCtx(blog) {
+    if (interestedIds.includes(blog.id))            return `In your interests · ${blog.category}`;
+    if (followedCategories.includes(blog.category)) return `Because you follow ${blog.category}`;
+    return null;
   }
 
-  function handleGenerate() {
-    currentPage.set('interested');
+  let dismissing = {};
+  function animateReject(id) {
+    dismissing = { ...dismissing, [id]: 'left' };
+    setTimeout(() => { rejectBlog(id); delete dismissing[id]; dismissing = { ...dismissing }; }, 300);
   }
-
-  const topicColors = [
-    '#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6',
-    '#06b6d4','#f97316','#84cc16','#ec4899','#14b8a6',
-    '#a855f7','#3b82f6',
-  ];
-
-  $: workflowDone = [
-    $interestedBlogs.length > 0,
-    $interestedBlogs.length > 0,
-    $scheduledPosts.length > 0,
-    $scheduledPosts.filter(p => p.status === 'published').length > 0,
-  ];
-
-  const workflowSteps = [
-    { label: 'Collect Articles',  icon: '📥' },
-    { label: 'Analyze Content',   icon: '🔍' },
-    { label: 'Generate Draft',    icon: '✍️' },
-    { label: 'Schedule Publish',  icon: '📅' },
-  ];
-
+  function animateInterest(blog) {
+    dismissing = { ...dismissing, [blog.id]: 'right' };
+    setTimeout(() => { interestBlog(blog); delete dismissing[blog.id]; dismissing = { ...dismissing }; }, 300);
+  }
+  function openArticle(blog) {
+    logRead(blog);
+    selectedBlog.set(blog); articleFrom.set('home');
+    currentPage.set('article'); window.scrollTo(0, 0);
+  }
   function timeAgo(ts) {
     const s = Math.floor((Date.now() - ts) / 1000);
     if (s < 60) return 'just now';
-    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-    return `${Math.floor(s / 86400)}d ago`;
+    if (s < 3600) return `${Math.floor(s/60)}m ago`;
+    if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+    return `${Math.floor(s/86400)}d ago`;
   }
 </script>
 
-<div class="home-wrap">
-  <!-- Hero -->
-  <section class="hero">
-    <p class="hero-eyebrow">AI-Powered Curation</p>
-    <h1 class="hero-title">What do you want to<br/>write about today?</h1>
-    <p class="hero-sub">Enter a topic and Mistral AI will discover and generate the best blogs for you.</p>
+<div class="home-root">
 
-    <div class="search-bar">
-      <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-      </svg>
-      <input
-        bind:value={query}
-        placeholder="e.g. AI Agents, healthcare, startup funding…"
-        on:keydown={e => e.key === 'Enter' && search()}
-      />
-      <button class="search-btn" on:click={() => search()}>Search</button>
+  <!-- ── CENTER FEED ── -->
+  <div class="feed-col">
+
+    <!-- Tab bar -->
+    <div class="tab-row">
+      <button class="tab" class:tab-active={activeTab==='foryou'}   on:click={() => activeTab='foryou'}>For you</button>
+      <button class="tab" class:tab-active={activeTab==='featured'} on:click={() => activeTab='featured'}>Featured</button>
     </div>
-  </section>
 
-  <!-- ── STAT CARDS ── -->
-  <section class="stat-cards">
-    {#each [
-      { label: 'Interested', value: $pipelineStats.interested, icon: '👍', page: 'interested' },
-      { label: 'Scheduled',  value: $pipelineStats.scheduled,  icon: '📅', page: 'scheduled'  },
-      { label: 'Published',  value: $pipelineStats.published,  icon: '✅', page: 'published'  },
-      { label: 'Bookmarked', value: $bookmarks.length,         icon: '🔖', page: 'bookmarks'  },
-    ] as s}
-      <button class="stat-card" on:click={() => currentPage.set(s.page)}>
-        <span class="stat-icon">{s.icon}</span>
-        <span class="stat-value">{s.value}</span>
-        <span class="stat-label">{s.label}</span>
-      </button>
-    {/each}
-  </section>
+    <!-- ── FOR YOU ── -->
+    {#if activeTab === 'foryou'}
 
-  <!-- ── HERO GENERATE BUTTON ── -->
-  <section class="generate-hero">
-    <div class="generate-glow"></div>
-    <div class="generate-inner">
-      <p class="generate-eyebrow">✨ AI-Powered</p>
-      <h2 class="generate-title">Ready to create your next article?</h2>
-      <p class="generate-sub">{$interestedBlogs.length > 0 ? `${$interestedBlogs.length} article${$interestedBlogs.length !== 1 ? 's' : ''} selected — generate your blog now.` : 'Search a topic, mark articles as interested, then generate.'}</p>
-      <button
-        class="generate-btn"
-        on:click={handleGenerate}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-        </svg>
-        Generate Article
-      </button>
-    </div>
-  </section>
-
-  <!-- ── WORKFLOW PROGRESS ── -->
-  <section class="workflow-section">
-    <h2 class="section-label">Workflow Progress</h2>
-    <div class="workflow-steps">
-      {#each workflowSteps as step, i}
-        <div class="workflow-step" class:done={workflowDone[i]}>
-          <div class="step-icon-wrap" class:done={workflowDone[i]}>
-            {#if workflowDone[i]}
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-            {:else}
-              <span>{step.icon}</span>
-            {/if}
-          </div>
-          <span class="step-label">{step.label}</span>
+      {#if $interestedBlogs.length > 0}
+        <div class="gen-bar">
+          <span>✨ {$interestedBlogs.length} article{$interestedBlogs.length !== 1 ? 's' : ''} marked</span>
+          <button class="gen-bar-btn" on:click={() => currentPage.set('preview')}>Generate Blog →</button>
         </div>
-        {#if i < workflowSteps.length - 1}
-          <div class="step-connector" class:done={workflowDone[i]}></div>
-        {/if}
-      {/each}
-    </div>
-  </section>
+      {/if}
 
-  <!-- ── TOPIC CARDS ── -->
-  <section class="topic-cards-section">
-    <h2 class="section-label">Trending Topics</h2>
-    <div class="topic-cards-grid">
-      {#each trendingTopics as topic, i}
-        <button
-          class="topic-card"
-          class:active={activeTopic === topic}
-          style="--tc:{topicColors[i % topicColors.length]}"
-          on:click={() => { selectTopic(topic); search(topic); }}
+      {#each forYouBlogs as blog}
+        {@const isRejected   = $rejectedIds.includes(blog.id)}
+        {@const isInterested = interestedIds.includes(blog.id)}
+        {@const isBookmarked = $bookmarks.includes(Number(blog.id))}
+        {@const ctx          = getCtx(blog)}
+        <article
+          class="card"
+          class:card-rejected={isRejected}
+          class:card-out-right={dismissing[blog.id]==='right'}
+          class:card-out-left={dismissing[blog.id]==='left'}
         >
-          <span class="topic-card-icon" style="color:{topicColors[i % topicColors.length]}">
-            {['🤖','🔍','🛡️','🏥','💡','⚡','🚗','🌱','💻','☸️','🏢','🔗'][i % 12]}
-          </span>
-          <span class="topic-card-name">{topic}</span>
-          <svg class="topic-card-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M5 12h14M12 5l7 7-7 7"/>
-          </svg>
+          <div class="card-body">
+            <div class="card-author">
+              <div class="card-avatar">{blog.source[0]}</div>
+              <span class="card-source">{blog.source}</span>
+              <div class="lang-toggle">
+                <button class="lang-btn" class:lang-active={!cardLang[blog.id] || cardLang[blog.id]==='EN'} on:click|stopPropagation={() => { cardLang = {...cardLang, [blog.id]: 'EN'}; }}>EN</button>
+                <button class="lang-btn" class:lang-active={cardLang[blog.id]==='FR'} on:click|stopPropagation={() => { cardLang = {...cardLang, [blog.id]: 'FR'}; }}>FR</button>
+              </div>
+            </div>
+
+            {#if ctx}<p class="card-ctx">{ctx}</p>{/if}
+
+            <!-- svelte-ignore a11y-click-events-have-key-events -->
+            <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+            <h2 class="card-title" on:click={() => openArticle(blog)}>{getTitle(blog, cardLang[blog.id] || 'EN')}</h2>
+            <p class="card-summary">{getSummary(blog, cardLang[blog.id] || 'EN')}</p>
+
+            <!-- Footer -->
+            <div class="card-foot">
+              <div class="card-foot-left">
+                <span class="card-tag">{blog.category}</span>
+                <span class="card-read">{blog.readTime} read</span>
+              </div>
+              <div class="card-foot-right">
+                {#if isInterested}
+                  <button class="act-chip act-interested" on:click={() => animateInterest(blog)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                    Interested
+                  </button>
+                  <button class="act-chip act-generate" on:click={() => { selectedBlog.set(blog); currentPage.set('preview'); }}>
+                    ✨ Generate
+                  </button>
+                {:else if !isRejected}
+                  <button class="act-icon" title="Mark interested" on:click={() => animateInterest(blog)}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                  </button>
+                  <button class="act-icon" title="Not interested" on:click={() => animateReject(blog.id)}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+                  </button>
+                {/if}
+                <button class="act-icon" class:act-bk={isBookmarked} title={isBookmarked ? 'Remove bookmark' : 'Bookmark'} on:click={() => toggleBookmark(blog.id)}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill={isBookmarked ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thumbnail — Medium: 112×112 square -->
+          <!-- svelte-ignore a11y-click-events-have-key-events -->
+          <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+          <img class="card-thumb" src={blog.image} alt="" on:click={() => openArticle(blog)} />
+        </article>
+      {/each}
+
+    <!-- ── FEATURED ── -->
+    {:else}
+      <div class="fy-header">
+        <h2 class="fy-title">Featured</h2>
+        <p class="fy-sub">Editor-selected stories — popular, trending, and high-quality picks from well-known writers and publications.</p>
+      </div>
+      {#each featuredBlogs as blog}
+        {@const isRejected   = $rejectedIds.includes(blog.id)}
+        {@const isInterested = interestedIds.includes(blog.id)}
+        {@const isBookmarked = $bookmarks.includes(Number(blog.id))}
+        <article class="card" class:card-rejected={isRejected}>
+          <div class="card-body">
+            <div class="card-author">
+              <div class="card-avatar">{blog.source[0]}</div>
+              <span class="card-source">{blog.source}</span>
+              <div class="lang-toggle">
+                <button class="lang-btn" class:lang-active={!cardLang[blog.id] || cardLang[blog.id]==='EN'} on:click|stopPropagation={() => { cardLang = {...cardLang, [blog.id]: 'EN'}; }}>EN</button>
+                <button class="lang-btn" class:lang-active={cardLang[blog.id]==='FR'} on:click|stopPropagation={() => { cardLang = {...cardLang, [blog.id]: 'FR'}; }}>FR</button>
+              </div>
+            </div>
+            <!-- svelte-ignore a11y-click-events-have-key-events -->
+            <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+            <h2 class="card-title" on:click={() => openArticle(blog)}>{getTitle(blog, cardLang[blog.id] || 'EN')}</h2>
+            <p class="card-summary">{getSummary(blog, cardLang[blog.id] || 'EN')}</p>
+            <div class="card-foot">
+              <div class="card-foot-left">
+                <span class="card-tag">{blog.category}</span>
+                <span class="card-read">{blog.readTime} read</span>
+              </div>
+              <div class="card-foot-right">
+                {#if isInterested}
+                  <button class="act-chip act-interested" on:click={() => animateInterest(blog)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                    Interested
+                  </button>
+                  <button class="act-chip act-generate" on:click={() => { selectedBlog.set(blog); currentPage.set('preview'); }}>✨ Generate</button>
+                {:else if !isRejected}
+                  <button class="act-icon" title="Mark interested" on:click={() => animateInterest(blog)}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                  </button>
+                  <button class="act-icon" title="Not interested" on:click={() => animateReject(blog.id)}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+                  </button>
+                {/if}
+                <button class="act-icon" class:act-bk={isBookmarked} on:click={() => toggleBookmark(blog.id)}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill={isBookmarked ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- svelte-ignore a11y-click-events-have-key-events -->
+          <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+          <img class="card-thumb" src={blog.image} alt="" on:click={() => openArticle(blog)} />
+        </article>
+      {/each}
+    {/if}
+
+  </div>
+
+  <!-- ── RIGHT SIDEBAR ── -->
+  <!-- Medium sidebar: 264px, no card borders, just sections with gray headings -->
+  <aside class="rsb">
+
+    <div class="rsb-section">
+      <h3 class="rsb-heading">Your Pipeline</h3>
+      {#each [
+        { label:'Interested',     value:$pipelineStats.interested, page:'interested' },
+        { label:'Not Interested', value:$pipelineStats.rejected,   page:'rejected'   },
+        { label:'Bookmarked',     value:$bookmarks.length,         page:'bookmarks'  },
+        { label:'Scheduled',      value:$pipelineStats.scheduled,  page:'scheduled'  },
+        { label:'Published',      value:$pipelineStats.published,  page:'published'  },
+      ] as s}
+        <button class="rsb-stat" on:click={() => currentPage.set(s.page)}>
+          <span class="rsb-stat-label">{s.label}</span>
+          <span class="rsb-stat-val">{s.value}</span>
         </button>
       {/each}
     </div>
-  </section>
 
-  <!-- ── RECENT ACTIVITY + EMPTY STATE ── -->
-  <section class="bottom-row">
-    <!-- Recent Activity -->
-    <div class="activity-panel">
-      <h2 class="section-label">Recent Activity</h2>
+    <div class="rsb-divider"></div>
+
+    <div class="rsb-section">
+      <h3 class="rsb-heading">Recent Activity</h3>
       {#if $activityLog.length === 0}
-        <div class="empty-state">
-          <div class="empty-illustration">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.3">
-              <rect x="3" y="4" width="18" height="18" rx="2"/>
-              <path d="M16 2v4M8 2v4M3 10h18"/>
-            </svg>
-          </div>
-          <p class="empty-title">No recent activity</p>
-          <p class="empty-sub">Your searches, interests, and bookmarks will appear here.</p>
-        </div>
+        <p class="rsb-empty">Your actions will appear here.</p>
       {:else}
-        <div class="activity-list">
-          {#each $activityLog.slice(0, 6) as item}
-            <div class="activity-row">
-              <span class="activity-emoji">{item.icon}</span>
-              <div class="activity-body">
-                <div class="activity-title">{item.text}</div>
-                <div class="activity-meta">{item.sub} · {timeAgo(item.time)}</div>
-              </div>
+        {#each $activityLog.slice(0,5) as item}
+          <div class="rsb-row">
+            <span class="rsb-row-icon">{item.icon}</span>
+            <div>
+              <div class="rsb-row-text">{item.text}</div>
+              <div class="rsb-row-meta">{timeAgo(item.time)}</div>
             </div>
-          {/each}
-        </div>
+          </div>
+        {/each}
       {/if}
     </div>
 
-    <!-- Scheduled Empty State -->
-    <div class="scheduled-panel">
-      <h2 class="section-label">Scheduled Articles</h2>
+    <div class="rsb-divider"></div>
+
+    <div class="rsb-section">
+      <div class="rsb-head-row">
+        <h3 class="rsb-heading">Scheduled</h3>
+        {#if $pipelineStats.scheduled > 0}
+          <button class="rsb-link" on:click={() => currentPage.set('scheduled')}>See all</button>
+        {/if}
+      </div>
       {#if $pipelineStats.scheduled === 0}
-        <div class="empty-state">
-          <div class="empty-illustration">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.3">
-              <rect x="3" y="4" width="18" height="18" rx="2"/>
-              <path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01"/>
-            </svg>
-          </div>
-          <p class="empty-title">No scheduled articles yet</p>
-          <p class="empty-sub">Generate a blog and schedule it to publish automatically.</p>
-          <button class="empty-cta" on:click={() => currentPage.set('home')}>Schedule Your First Article</button>
-        </div>
+        <p class="rsb-empty">Nothing scheduled yet.</p>
       {:else}
-        <div class="activity-list">
-          {#each [...$scheduledPosts].filter(p => p.status === 'scheduled').slice(0,4) as post}
-            <div class="activity-row">
-              <span class="activity-dot scheduled"></span>
-              <div class="activity-body">
-                <div class="activity-title">{post.title}</div>
-                <div class="activity-meta">
-                  <span class="activity-status scheduled">Scheduled</span>
-                  · {new Date(post.scheduledAt).toLocaleDateString('en-GB', { dateStyle: 'short' })}
-                </div>
-              </div>
+        {#each $scheduledPosts.filter(p=>p.status==='scheduled').slice(0,3) as post}
+          <div class="rsb-row">
+            <span class="rsb-dot"></span>
+            <div>
+              <div class="rsb-row-text">{post.title}</div>
+              <div class="rsb-row-meta">{new Date(post.scheduledAt).toLocaleDateString('en-GB',{dateStyle:'short'})}</div>
             </div>
-          {/each}
-          <button class="view-all-link" on:click={() => currentPage.set('scheduled')}>View all →</button>
-        </div>
+          </div>
+        {/each}
       {/if}
     </div>
-  </section>
 
+  </aside>
 </div>
 
 <style>
-  .home-wrap {
-    max-width: 740px;
+  /* ─── Page root ─────────────────────────────────────────── */
+  .home-root {
+    display: flex;
+    max-width: 1192px;
     margin: 0 auto;
-    padding: 0 24px 80px;
+    padding: 0 24px;
+    gap: 0;
+    align-items: flex-start;
+    min-height: 100vh;
   }
 
-  /* Hero */
-  .hero {
-    text-align: center;
-    padding: 48px 0 40px;
-    border-bottom: 1px solid var(--divider);
-  }
-  .hero-eyebrow {
-    font-size: 12px; font-weight: 500; letter-spacing: 0.08em;
-    text-transform: uppercase; color: var(--green); margin-bottom: 16px;
-  }
-  .hero-title {
-    font-family: var(--serif); font-size: clamp(32px, 5vw, 46px);
-    font-weight: 700; color: var(--text-black); line-height: 1.18;
-    letter-spacing: -0.5px; margin-bottom: 16px;
-  }
-  .hero-sub {
-    font-size: 17px; color: var(--text-muted); line-height: 1.65;
-    max-width: 480px; margin: 0 auto 36px;
+  /* ─── Center feed column ────────────────────────────────── */
+  /* Medium center col: ~680px, right sidebar: 264px, gap: ~88px */
+  .feed-col {
+    flex: 1;
+    min-width: 0;
+    max-width: 680px;
+    padding-bottom: 80px;
+    border-right: 1px solid rgba(0,0,0,0.09);
+    padding-right: 48px;
   }
 
-  /* Search bar */
-  .search-bar {
+  /* ─── Tab row — Medium exact ──────────────────────────── */
+  /* Thin bottom border, tabs are just text with a 1px black indicator */
+  .tab-row {
     display: flex; align-items: center;
-    background: var(--white); border: 1.5px solid var(--divider-strong);
-    border-radius: 100px; padding: 6px 6px 6px 18px;
-    max-width: 560px; margin: 0 auto;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  .search-bar:focus-within {
-    border-color: var(--text-black);
-    box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
-  }
-  .search-icon { color: var(--text-muted); flex-shrink: 0; }
-  .search-bar input {
-    flex: 1; border: none; background: transparent; outline: none;
-    font-size: 15px; color: var(--text-black); padding: 6px 12px;
-    font-family: var(--sans);
-  }
-  .search-bar input::placeholder { color: var(--text-hint); }
-  .search-btn {
-    background: var(--text-black); color: var(--white); border: none; cursor: pointer;
-    font-size: 14px; font-weight: 500; font-family: var(--sans);
-    padding: 9px 22px; border-radius: 100px; white-space: nowrap;
-    transition: opacity 0.15s;
-  }
-  .search-btn:hover { opacity: 0.85; }
-
-  /* Topics */
-  .topics-section { padding: 40px 0; border-bottom: 1px solid var(--divider); }
-  .topics-top {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 32px;
+    border-bottom: 1px solid rgba(0,0,0,0.09);
+    padding-top: 20px;
+    gap: 0;
     margin-bottom: 0;
   }
-  .topics-row-head {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 16px;
+  .tab {
+    background: none; border: none; cursor: pointer;
+    font-size: 14px; font-weight: 400;
+    color: rgba(0,0,0,0.55);
+    font-family: var(--sans);
+    padding: 0 0 12px;
+    margin-right: 32px;
+    border-bottom: 1px solid transparent;
+    position: relative; top: 1px;
+    transition: color 0.12s;
+    white-space: nowrap;
   }
-  .topics-heading {
-    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
-    text-transform: uppercase; color: var(--text-muted); margin-bottom: 0;
+  .dark .tab { color: rgba(255,255,255,0.45); }
+  .tab:hover { color: var(--text-black); }
+  .dark .tab:hover { color: var(--text-black); }
+  .tab.tab-active {
+    color: var(--text-black);
+    border-bottom-color: var(--text-black);
+  }
+
+  /* Generate bar */
+  .gen-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--off-white); border: 1px solid var(--divider);
+    border-radius: 4px; padding: 10px 16px; margin-top: 20px;
+    font-size: 13px; color: var(--text-muted);
+  }
+  .gen-bar-btn {
+    background: var(--text-black); color: var(--white); border: none;
+    font-size: 13px; font-weight: 500; font-family: var(--sans);
+    padding: 6px 16px; border-radius: 99px; cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .gen-bar-btn:hover { opacity: 0.82; }
+
+  /* ─── Feed card — Medium exact ──────────────────────────── */
+  /* 28px top/bottom padding, thumbnail 112×112 */
+  .card {
+    display: flex; align-items: flex-start;
+    gap: 24px;
+    padding: 28px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.09);
+    transition: opacity 0.18s, transform 0.28s ease, background 0.15s;
+    border-radius: 8px;
+    margin: 0 -16px;
+    padding-left: 16px; padding-right: 16px;
+  }
+  .card:hover { background: var(--off-white); }
+  .card.card-rejected { opacity: 0.38; }
+  .card.card-out-right { transform: translateX(40px); opacity: 0; pointer-events: none; }
+  .card.card-out-left  { transform: translateX(-40px); opacity: 0; pointer-events: none; }
+
+  .card-body { flex: 1; min-width: 0; }
+
+  /* Author row */
+  .card-author {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  }
+  .card-avatar {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--text-black); color: var(--white);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; flex-shrink: 0;
+  }
+  .card-source { font-size: 13px; font-weight: 400; color: var(--text-black); }
+  .card-lang {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
+    background: #eef2ff; border: 1px solid #c7d2fe;
+    color: #4338ca; padding: 1px 5px; border-radius: 3px;
+  }
+
+  .card-ctx {
+    font-size: 12px; color: var(--text-muted); margin-bottom: 6px;
+  }
+
+  /* Title — Medium: 20px sohne/sans 700. We use serif for our brand */
+  .card-title {
+    font-family: var(--serif);
+    font-size: 20px; font-weight: 700;
+    color: var(--text-black); line-height: 1.28;
+    letter-spacing: -0.3px; margin-bottom: 6px;
+    cursor: pointer;
+  }
+  .card-title:hover { color: rgba(0,0,0,0.75); }
+  .dark .card-title:hover { color: rgba(255,255,255,0.75); }
+
+  /* Summary — Medium: 16px, line-height 1.5, 2-line clamp */
+  .card-summary {
+    font-size: 16px; color: var(--text-muted);
+    line-height: 1.5; margin-bottom: 16px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Footer row */
+  .card-foot {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-foot-left { display: flex; align-items: center; gap: 10px; }
+  .card-foot-right { display: flex; align-items: center; gap: 2px; }
+
+  .card-tag {
+    font-size: 12px; font-weight: 500;
+    background: var(--off-white); color: var(--text-muted);
+    padding: 3px 10px; border-radius: 99px;
+  }
+  .card-read { font-size: 13px; color: var(--text-muted); }
+
+  /* Action chips */
+  .act-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; font-weight: 500; font-family: var(--sans);
+    padding: 4px 12px; border-radius: 99px; cursor: pointer;
+    border: 1px solid var(--divider); background: var(--white);
+    color: var(--text-muted); transition: all 0.12s; white-space: nowrap;
+  }
+  .act-chip:hover { border-color: var(--text-black); color: var(--text-black); }
+  .act-chip.act-interested {
+    background: rgba(26,137,23,.07); border-color: var(--green,#1a8917);
+    color: var(--green,#1a8917);
+  }
+  .act-chip.act-generate {
+    background: var(--text-black); color: var(--white);
+    border-color: var(--text-black);
+  }
+  .act-chip.act-generate:hover { opacity: 0.82; }
+
+  /* Icon action buttons — Medium uses 28px circle */
+  .act-icon {
+    display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted);
+    transition: background 0.12s, color 0.12s;
+  }
+  .act-icon:hover { background: rgba(0,0,0,0.06); color: var(--text-black); }
+  .dark .act-icon:hover { background: rgba(255,255,255,0.08); }
+  .act-icon.act-bk { color: var(--text-black); }
+
+  /* Thumbnail — Medium: 112×112 */
+  .card-thumb {
+    width: 112px; height: 112px; object-fit: cover;
+    flex-shrink: 0; cursor: pointer;
   }
 
   /* Language toggle */
   .lang-toggle {
-    display: flex; gap: 2px;
-    background: var(--off-white); border: 1px solid var(--divider);
-    border-radius: 100px; padding: 2px;
+    display: inline-flex; border: 1px solid var(--divider); border-radius: 4px;
+    overflow: hidden; margin-left: 6px;
   }
   .lang-btn {
-    padding: 3px 12px; border-radius: 100px; border: none; cursor: pointer;
-    font-size: 12px; font-weight: 600; font-family: var(--sans);
-    color: var(--text-muted); background: transparent;
-    transition: all 0.15s; letter-spacing: 0.04em;
-  }
-  .lang-btn.active {
-    background: var(--text-black); color: var(--white);
-  }
-
-  .chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
-  .chip {
-    display: inline-flex; align-items: center; gap: 5px;
-    background: var(--off-white); border: 1px solid var(--divider);
-    color: var(--text-body); font-size: 13px; font-family: var(--sans);
-    padding: 6px 14px; border-radius: 100px; cursor: pointer;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
-  }
-  .chip:hover { background: var(--text-black); color: var(--white); border-color: var(--text-black); }
-  .chip.chip-active { background: var(--text-black); color: var(--white); border-color: var(--text-black); }
-  .chip-recent { color: var(--text-muted); }
-
-  /* Queries panel */
-  .queries-panel {
-    margin-top: 24px;
-    border: 1px solid var(--divider);
-    border-radius: 8px;
-    overflow: hidden;
-    background: var(--white);
-  }
-  .queries-head {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--divider);
-    background: var(--off-white);
-  }
-  .queries-title-row {
-    display: flex; align-items: center; gap: 10px; margin-bottom: 4px;
-  }
-  .queries-title {
-    font-size: 13px; color: var(--text-body);
-  }
-  .queries-title strong { color: var(--text-black); }
-  .queries-sub { font-size: 12px; color: var(--text-muted); }
-
-  .lang-badge {
-    font-size: 11px; font-weight: 700; padding: 2px 8px;
-    border-radius: 100px; letter-spacing: 0.06em;
-  }
-  .lang-badge.EN { background: var(--off-white); color: var(--text-muted); border: 1px solid var(--divider-strong); }
-  .lang-badge.FR { background: #EEF2FF; color: #4338CA; border: 1px solid #C7D2FE; }
-
-  .queries-list { display: flex; flex-direction: column; }
-  .query-row {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; padding: 13px 20px;
-    border-bottom: 1px solid var(--divider);
-    background: var(--white); border-left: none; border-right: none; border-top: none;
-    cursor: pointer; text-align: left; font-family: var(--sans);
-    transition: background 0.12s;
-    width: 100%;
-  }
-  .query-row:last-child { border-bottom: none; }
-  .query-row:hover { background: var(--off-white); }
-  .query-left { display: flex; align-items: flex-start; gap: 12px; flex: 1; min-width: 0; }
-  .query-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
-  .query-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .query-type {
-    font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
-    text-transform: uppercase; color: var(--text-muted);
-  }
-  .query-text {
-    font-size: 13px; color: var(--text-black); line-height: 1.4;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .query-search-icon { color: var(--text-hint); flex-shrink: 0; }
-  .query-row:hover .query-search-icon { color: var(--text-black); }
-
-  .queries-footer {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 20px; background: var(--off-white);
-    border-top: 1px solid var(--divider);
-  }
-  .novelty-note { font-size: 12px; color: var(--text-muted); }
-  .search-all-btn {
-    background: var(--text-black); color: #fff; border: none; cursor: pointer;
-    font-size: 13px; font-weight: 500; font-family: var(--sans);
-    padding: 7px 16px; border-radius: 100px; transition: background 0.15s;
-    white-space: nowrap;
-  }
-  .search-all-btn:hover { background: #333; }
-
-  /* How it works */
-  .how-section { padding: 48px 0 0; }
-  .section-heading {
-    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
-    text-transform: uppercase; color: var(--text-muted); margin-bottom: 28px;
-  }
-  .how-grid {
-    display: grid; grid-template-columns: repeat(4, 1fr);
-    gap: 0; border: 1px solid var(--divider); border-radius: 8px; overflow: hidden;
-  }
-  .how-card {
-    padding: 28px 24px; border-right: 1px solid var(--divider);
-    background: var(--white); transition: background 0.15s, transform 0.18s ease, box-shadow 0.18s ease;
-  }
-  .how-card:last-child { border-right: none; }
-  .how-card:hover {
-    background: var(--off-white);
-    transform: translateY(-3px);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-    position: relative; z-index: 1;
-  }
-  .how-number {
-    font-family: var(--serif); font-size: 32px; font-weight: 700;
-    line-height: 1; margin-bottom: 16px; opacity: 0.9;
-  }
-  .how-title { font-size: 15px; font-weight: 600; color: var(--text-black); margin-bottom: 10px; line-height: 1.3; }
-  .how-desc  { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
-
-  @media (max-width: 700px) {
-    .hero { padding: 48px 0 40px; }
-    .how-grid { grid-template-columns: 1fr 1fr; }
-    .how-card { border-bottom: 1px solid var(--divider); }
-    .how-card:nth-child(even) { border-right: none; }
-    .queries-footer { flex-direction: column; gap: 10px; align-items: flex-start; }
-  }
-  @media (max-width: 420px) {
-    .how-grid { grid-template-columns: 1fr; }
-    .how-card { border-right: none; }
-  }
-
-  /* ── STAT CARDS ── */
-  .stat-cards {
-    display: grid; grid-template-columns: repeat(4, 1fr);
-    gap: 12px; padding: 28px 0 0;
-  }
-  .stat-card {
-    display: flex; flex-direction: column; align-items: center; gap: 6px;
-    padding: 20px 12px; border-radius: 12px;
-    background: var(--white);
-    border: 1px solid var(--divider);
-    cursor: pointer; font-family: var(--sans);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
-  }
-  .stat-card:hover {
-    transform: translateY(-3px) scale(1.03);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.10);
-  }
-  .stat-icon { font-size: 22px; }
-  .stat-value { font-family: var(--serif); font-size: 28px; font-weight: 700; color: var(--text-black); line-height: 1; }
-  .stat-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
-
-  /* ── GENERATE HERO ── */
-  .generate-hero {
-    position: relative; margin: 24px 0;
-    border-radius: 12px; overflow: hidden;
-    background: var(--off-white);
-    border: 1px solid var(--divider);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    transition: border-color 0.18s ease, box-shadow 0.18s ease;
-  }
-  .generate-hero:hover {
-    border-color: var(--text-black);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
-  }
-  .generate-glow { display: none; }
-  .generate-inner {
-    position: relative; padding: 32px; text-align: center;
-  }
-  .generate-eyebrow {
-    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
-    text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px;
-  }
-  .generate-title {
-    font-family: var(--serif); font-size: clamp(20px, 3vw, 24px);
-    font-weight: 700; color: var(--text-black); margin-bottom: 8px; line-height: 1.25;
-  }
-  .generate-sub {
-    font-size: 14px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.6;
-  }
-  .generate-btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: var(--text-black);
-    color: var(--white); border: none; cursor: pointer;
-    font-size: 14px; font-weight: 500; font-family: var(--sans);
-    padding: 11px 28px; border-radius: 100px;
-    transition: opacity 0.15s, transform 0.18s ease;
-  }
-  .generate-btn:hover {
-    opacity: 0.85;
-    transform: scale(1.03);
-  }
-
-  /* ── WORKFLOW ── */
-  .workflow-section { padding: 8px 0 24px; }
-  .section-label {
-    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
-    text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px;
-  }
-  .workflow-steps {
-    display: flex; align-items: center; gap: 0;
-    background: var(--white); border: 1px solid var(--divider);
-    border-radius: 12px; padding: 16px 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
-  }
-  .workflow-steps:hover {
-    transform: translateY(-3px) scale(1.01);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.10);
-  }
-  .workflow-step {
-    display: flex; flex-direction: column; align-items: center; gap: 8px;
-    flex: 1; opacity: 0.4; transition: opacity 0.2s;
-  }
-  .workflow-step.done { opacity: 1; }
-  .step-icon-wrap {
-    width: 36px; height: 36px; border-radius: 50%;
-    background: var(--off-white); border: 2px solid var(--divider);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px; transition: all 0.2s;
-  }
-  .step-icon-wrap.done {
-    background: #10b981; border-color: #10b981; color: var(--white);
-  }
-  .step-label { font-size: 11px; font-weight: 500; color: var(--text-muted); text-align: center; white-space: nowrap; }
-  .workflow-step.done .step-label { color: var(--text-black); font-weight: 600; }
-  .step-connector {
-    flex: 0 0 32px; height: 2px;
-    background: var(--divider); border-radius: 2px;
-    transition: background 0.3s;
-    margin-bottom: 20px;
-  }
-  .step-connector.done { background: #10b981; }
-
-  /* ── TOPIC CARDS ── */
-  .topic-cards-section { padding: 8px 0 24px; }
-  .topic-cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 10px;
-  }
-  .topic-card {
-    display: flex; align-items: center; gap: 8px;
-    padding: 12px 14px; border-radius: 10px;
-    background: var(--white);
-    border: 1.5px solid var(--divider);
-    cursor: pointer; font-family: var(--sans);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
-    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s;
-    text-align: left;
-  }
-  .topic-card:hover, .topic-card.active {
-    transform: scale(1.04);
-    border-color: var(--tc);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.10), 0 0 0 3px color-mix(in srgb, var(--tc) 15%, transparent);
-  }
-  .topic-card-icon { font-size: 18px; flex-shrink: 0; }
-  .topic-card-name { flex: 1; font-size: 12px; font-weight: 500; color: var(--text-black); line-height: 1.3; }
-  .topic-card-arrow { color: var(--text-hint); flex-shrink: 0; opacity: 0; transition: opacity 0.15s; }
-  .topic-card:hover .topic-card-arrow { opacity: 1; }
-
-  /* ── BOTTOM ROW ── */
-  .bottom-row {
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 16px; padding: 8px 0 32px;
-  }
-  .activity-panel, .scheduled-panel {
-    background: var(--white); border: 1px solid var(--divider);
-    border-radius: 12px; padding: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
-  }
-  .activity-panel:hover, .scheduled-panel:hover {
-    transform: translateY(-3px) scale(1.01);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.10);
-  }
-  .activity-list { display: flex; flex-direction: column; gap: 0; }
-  .activity-row {
-    display: flex; align-items: flex-start; gap: 10px;
-    padding: 10px 0; border-bottom: 1px solid var(--divider);
-  }
-  .activity-row:last-of-type { border-bottom: none; }
-  .activity-emoji { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
-  .activity-body { flex: 1; min-width: 0; }
-  .activity-title {
-    font-size: 13px; font-weight: 500; color: var(--text-black);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    margin-bottom: 3px;
-  }
-  .activity-meta { font-size: 11px; color: var(--text-muted); }
-  .activity-status.published { color: #10b981; font-weight: 600; }
-  .activity-status.scheduled { color: #f59e0b; font-weight: 600; }
-  .view-all-link {
     background: none; border: none; cursor: pointer;
-    font-size: 12px; color: var(--text-muted); font-family: var(--sans);
-    padding: 8px 0 0; transition: color 0.15s;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+    padding: 2px 7px; color: var(--text-muted); font-family: var(--sans);
+    transition: background 0.12s, color 0.12s;
   }
-  .view-all-link:hover { color: var(--text-black); }
+  .lang-btn.lang-active { background: var(--text-black); color: #fff; }
 
-  /* ── EMPTY STATE ── */
-  .empty-state {
-    display: flex; flex-direction: column; align-items: center;
-    padding: 24px 16px; text-align: center; gap: 6px;
+  /* For You / Featured header */
+  .fy-header { padding: 28px 0 12px; border-bottom: 1px solid rgba(0,0,0,0.09); margin-bottom: 4px; }
+  .fy-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .fy-title { font-family: var(--serif); font-size: 22px; font-weight: 700; color: var(--text-black); letter-spacing: -0.2px; margin-bottom: 4px; }
+  .fy-sub { font-size: 13px; color: var(--text-muted); max-width: 480px; line-height: 1.5; }
+  .fy-badge-head {
+    font-size: 11px; font-weight: 600; white-space: nowrap;
+    color: #6a1b9a; background: #f3e5f5; border: 1px solid #e1bee7;
+    padding: 3px 10px; border-radius: 3px; flex-shrink: 0; margin-top: 4px;
   }
-  .empty-illustration { margin-bottom: 8px; }
-  .empty-title { font-size: 14px; font-weight: 600; color: var(--text-black); }
-  .empty-sub { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
-  .empty-cta {
-    margin-top: 12px;
-    display: inline-flex; align-items: center;
-    background: var(--text-black); color: var(--white); border: none; cursor: pointer;
-    font-size: 13px; font-weight: 500; font-family: var(--sans);
-    padding: 9px 20px; border-radius: 100px; transition: opacity 0.15s;
+  .fy-badge {
+    font-size: 10px; font-weight: 600; color: var(--green,#1a8917);
+    background: rgba(26,137,23,.08); border: 1px solid rgba(26,137,23,.2);
+    padding: 1px 7px; border-radius: 3px;
   }
-  .empty-cta:hover { opacity: 0.85; }
+  .feat-pill {
+    font-size: 10px; font-weight: 600; color: #6a1b9a;
+    background: #f3e5f5; border: 1px solid #e1bee7;
+    padding: 1px 7px; border-radius: 3px; margin-left: auto; white-space: nowrap;
+  }
 
-  @media (max-width: 600px) {
-    .stat-cards { grid-template-columns: repeat(2, 1fr); }
-    .bottom-row { grid-template-columns: 1fr; }
-    .topic-cards-grid { grid-template-columns: repeat(2, 1fr); }
-    .workflow-steps { overflow-x: auto; }
-    .step-label { font-size: 10px; }
+  /* ─── Right sidebar — Medium: 264px, no card borders ────── */
+  .rsb {
+    width: 264px;
+    flex-shrink: 0;
+    position: sticky; top: 77px;   /* 57px topbar + 20px breathing */
+    padding: 20px 0 80px 56px;
+    max-height: calc(100vh - 57px);
+    overflow-y: auto;
+  }
+  .rsb::-webkit-scrollbar { width: 0; }
+
+  .rsb-section { padding: 0 0 4px; }
+
+  /* Medium sidebar headings: 13px uppercase tracked */
+  .rsb-heading {
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--text-black);
+    margin-bottom: 12px;
+    font-family: var(--sans);
+  }
+
+  .rsb-divider {
+    border-top: 1px solid rgba(0,0,0,0.09);
+    margin: 20px 0;
+  }
+
+  .rsb-head-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .rsb-head-row .rsb-heading { margin-bottom: 0; }
+
+  .rsb-link {
+    background: none; border: none; cursor: pointer;
+    font-size: 13px; color: var(--green,#1a8917); font-family: var(--sans);
+    padding: 0;
+  }
+  .rsb-link:hover { text-decoration: underline; }
+
+  .rsb-stat {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0;
+    border-top: 1px solid rgba(0,0,0,0.06);
+    background: none; border-left: none; border-right: none; border-bottom: none;
+    cursor: pointer; width: 100%; font-family: var(--sans);
+  }
+  .rsb-stat:first-of-type { border-top: none; }
+  .rsb-stat:hover .rsb-stat-label { color: var(--text-black); }
+  .rsb-stat-label { font-size: 14px; color: var(--text-muted); }
+  .rsb-stat-val   { font-size: 16px; font-weight: 700; color: var(--text-black); font-family: var(--serif); }
+
+  .rsb-empty { font-size: 13px; color: var(--text-hint); padding: 4px 0; }
+
+  .rsb-row {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 9px 0; border-top: 1px solid rgba(0,0,0,0.06);
+  }
+  .rsb-row:first-of-type { border-top: none; }
+  .rsb-row-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+  .rsb-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--amber,#d97706); flex-shrink: 0; margin-top: 5px;
+  }
+  .rsb-row-text {
+    font-size: 13px; color: var(--text-black); line-height: 1.4;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px;
+  }
+  .rsb-row-meta { font-size: 12px; color: var(--text-muted); }
+
+  /* ─── Responsive ─────────────────────────────────────────── */
+  @media (max-width: 1080px) {
+    .rsb { display: none; }
+    .feed-col { border-right: none; padding-right: 0; max-width: 100%; }
+  }
+  @media (max-width: 728px) {
+    .home-root { padding: 0 16px; }
+    .card { flex-direction: column-reverse; gap: 12px; }
+    .card-thumb { width: 100%; height: 200px; }
   }
 </style>

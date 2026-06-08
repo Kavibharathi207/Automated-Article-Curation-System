@@ -15,12 +15,6 @@
 <div class="list-wrap">
   <div class="list-header">
     <div>
-      <button class="back-btn" on:click={() => currentPage.set('home')}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <path d="M19 12H5M12 5l-7 7 7 7"/>
-        </svg>
-        Home
-      </button>
       <h1 class="list-title">Bookmarks</h1>
       <p class="list-sub">{bookmarkedBlogs.length} article{bookmarkedBlogs.length !== 1 ? 's' : ''} saved</p>
     </div>

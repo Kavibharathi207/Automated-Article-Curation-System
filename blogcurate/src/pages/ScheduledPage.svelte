@@ -1,6 +1,11 @@
 <script>
-  import { currentPage, scheduledPosts } from '../stores/store.js';
+  import { currentPage, scheduledPosts, selectedBlog } from '../stores/store.js';
   $: posts = $scheduledPosts.filter(p => p.status === 'scheduled');
+
+  function editPost(post) {
+    selectedBlog.set(post);
+    currentPage.set('preview');
+  }
 </script>
 
 <div class="list-wrap">
@@ -36,7 +41,7 @@
               <span class="post-time">{new Date(post.scheduledAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</span>
             </div>
           </div>
-          <button class="action-btn" on:click={() => currentPage.set('preview')}>Edit</button>
+          <button class="action-btn" on:click={() => editPost(post)}>Edit</button>
         </div>
       {/each}
     </div>

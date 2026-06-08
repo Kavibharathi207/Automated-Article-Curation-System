@@ -22,8 +22,13 @@
   }
   function savePref(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 
-  let prefCategories = loadPref(`bca_${$user?.email}_prefcats`, []);
-  let pubFrequency   = loadPref(`bca_${$user?.email}_pubfreq`, 'daily');
+  let prefCategories = [];
+  let pubFrequency   = 'daily';
+
+  $: if ($user?.email) {
+    prefCategories = loadPref(`bca_${$user.email}_prefcats`, []);
+    pubFrequency   = loadPref(`bca_${$user.email}_pubfreq`, 'daily');
+  }
 
   function toggleCat(cat) {
     prefCategories = prefCategories.includes(cat)
@@ -37,9 +42,10 @@
     saveError = '';
     if (!displayName.trim()) { saveError = 'Display name cannot be empty.'; return; }
     if (!EMAIL_RE.test(displayEmail.trim())) { saveError = 'Please enter a valid email address.'; return; }
-    updateUser(displayName.trim(), displayEmail.trim());
-    savePref(`bca_${$user?.email}_prefcats`, prefCategories);
-    savePref(`bca_${$user?.email}_pubfreq`, pubFrequency);
+    const newEmail = displayEmail.trim();
+    updateUser(displayName.trim(), newEmail);
+    savePref(`bca_${newEmail}_prefcats`, prefCategories);
+    savePref(`bca_${newEmail}_pubfreq`, pubFrequency);
     saved = true;
     setTimeout(() => saved = false, 2000);
   }

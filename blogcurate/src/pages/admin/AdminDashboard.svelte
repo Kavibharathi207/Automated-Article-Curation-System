@@ -262,7 +262,7 @@
   }
 
   /* Quick nav */
-  .quick-nav { display: grid; grid-template-columns: repeat(3,1fr); gap: 0; border: 1px solid var(--divider); border-radius: var(--radius); overflow: hidden; }
+  .quick-nav { display: grid; grid-template-columns: repeat(4,1fr); gap: 0; border: 1px solid var(--divider); border-radius: var(--radius); overflow: hidden; }
   .quick-card {
     background: var(--white); border: none; border-right: 1px solid var(--divider);
     padding: 24px; text-align: left; cursor: pointer;

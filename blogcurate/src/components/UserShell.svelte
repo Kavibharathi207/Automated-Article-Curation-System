@@ -1,381 +1,562 @@
 <script>
-  import { user, userAuthed, currentPage, notifications, unreadCount, markAllRead, logout, pipelineFlag, appMode, dark, toggleTheme } from '../stores/store.js';
-  import AuthPage       from '../pages/AuthPage.svelte';
-  import HomePage       from '../pages/HomePage.svelte';
-  import DiscoverPage   from '../pages/DiscoverPage.svelte';
-  import PreviewPage    from '../pages/PreviewPage.svelte';
-  import DashboardPage  from '../pages/DashboardPage.svelte';
-  import SettingsPage   from '../pages/SettingsPage.svelte';
-  import ScheduledPage  from '../pages/ScheduledPage.svelte';
-  import PublishedPage  from '../pages/PublishedPage.svelte';
-  import InterestedPage from '../pages/InterestedPage.svelte';
-  import RejectedPage   from '../pages/RejectedPage.svelte';
+  import { user, userAuthed, currentPage, notifications, unreadCount, markAllRead,
+           logout, pipelineFlag, appMode, dark, toggleTheme,
+           searchQuery, addRecentSearch } from '../stores/store.js';
+  import HomePage        from '../pages/HomePage.svelte';
+  import DiscoverPage    from '../pages/DiscoverPage.svelte';
+  import PreviewPage     from '../pages/PreviewPage.svelte';
+  import DashboardPage   from '../pages/DashboardPage.svelte';
+  import SettingsPage    from '../pages/SettingsPage.svelte';
+  import ScheduledPage   from '../pages/ScheduledPage.svelte';
+  import PublishedPage   from '../pages/PublishedPage.svelte';
+  import InterestedPage  from '../pages/InterestedPage.svelte';
+  import RejectedPage    from '../pages/RejectedPage.svelte';
+  import StoriesPage     from '../pages/StoriesPage.svelte';
+  import StatsPage       from '../pages/StatsPage.svelte';
+  import FollowingPage   from '../pages/FollowingPage.svelte';
+  import BlogDetailPage  from '../pages/BlogDetailPage.svelte';
   import OnboardingModal from './OnboardingModal.svelte';
 
+  let expanded     = false;
   let showNotif    = false;
   let showUserMenu = false;
+  let showSearch   = false;
+  let searchInput  = '';
+
   $: showOnboarding = $user?.isNew ?? false;
 
-  // Page history for back navigation
-  /** @type {string[]} */
-  let history = [];
-  $: if ($currentPage) {
-    history = history[history.length - 1] !== $currentPage
-      ? [...history, $currentPage]
-      : history;
-  }
-  function goBack() {
-    if (history.length > 1) {
-      const prev = history[history.length - 2];
-      history = history.slice(0, -1);
-      currentPage.set(prev);
-    }
-  }
-  $: canGoBack = history.length > 1;
-
   const nav = [
-    { page: 'home',      label: 'Home'      },
-    { page: 'discover',  label: 'Discover'  },
-    { page: 'dashboard', label: 'Dashboard' },
-    { page: 'settings',  label: 'Settings'  },
+    { page: 'home',      label: 'Home',
+      icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z M9 22V12h6v10' },
+    { page: 'discover',  label: 'Discover',
+      icon: 'M21 21l-4.35-4.35M11 19A8 8 0 1011 3a8 8 0 000 16z' },
+    { page: 'stories',   label: 'Stories',
+      icon: 'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z' },
+    { page: 'stats',     label: 'Stats',
+      icon: 'M18 20V10M12 20V4M6 20v-6' },
+    { page: 'following', label: 'Following',
+      icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75' },
+    { page: 'dashboard', label: 'Dashboard',
+      icon: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z' },
+    { page: 'settings',  label: 'Settings',
+      icon: 'M12 15a3 3 0 100-6 3 3 0 000 6z M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z' },
   ];
 
-  const titles = {
-    home: 'Home', discover: 'Discover', preview: 'Preview',
-    dashboard: 'Dashboard', settings: 'Settings',
-    scheduled: 'Scheduled', published: 'Published',
-    interested: 'Interested', rejected: 'Rejected',
-  };
+  // Update staggered label delays for 7 items
 
-  /** @param {MouseEvent} e */
+  function navigate(page) {
+    currentPage.set(page);
+    showNotif = false; showUserMenu = false; showSearch = false;
+  }
+  function doSearch() {
+    const t = searchInput.trim();
+    if (t) { addRecentSearch(t); searchQuery.set(t); }
+    navigate('discover');
+    showSearch = false; searchInput = '';
+  }
+  function onSearchKey(e) {
+    if (e.key === 'Enter') doSearch();
+    if (e.key === 'Escape') { showSearch = false; searchInput = ''; }
+  }
   function openNotif(e) {
     e.stopPropagation(); showNotif = !showNotif; showUserMenu = false;
     if (showNotif) markAllRead();
   }
-  /** @param {MouseEvent} e */
-  function openUserMenu(e) { e.stopPropagation(); showUserMenu = !showUserMenu; showNotif = false; }
+  function openUserMenu(e) {
+    e.stopPropagation(); showUserMenu = !showUserMenu; showNotif = false;
+  }
   function closeAll() { showNotif = false; showUserMenu = false; }
-  /** @param {string} page */
-  function navigate(page) { currentPage.set(page); closeAll(); }
 </script>
 
 <svelte:window on:click={closeAll} />
 
-{#if !$userAuthed}
-  <AuthPage />
-{:else}
-  <div class="shell">
-    <!-- Top nav -->
-    <header class="topnav">
-      <div class="topnav-inner">
-        <div class="topnav-left">
-          {#if canGoBack}
-            <button class="back-btn" on:click={goBack} aria-label="Go back">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <path d="M19 12H5M12 5l-7 7 7 7"/>
-              </svg>
-            </button>
-          {/if}
-          <button class="logo-btn" on:click={() => navigate('home')}>Innovation Digest</button>
-        </div>
+{#if $userAuthed}
+<div class="shell" class:expanded>
 
-        <nav class="topnav-links">
-          {#each nav as n}
-            <button
-              class="nav-link"
-              class:active={$currentPage === n.page}
-              on:click={() => navigate(n.page)}
-            >{n.label}</button>
-          {/each}
-        </nav>
-
-        <div class="topnav-right">
-          <!-- Theme toggle -->
-          <button class="icon-btn theme-toggle" on:click={toggleTheme} aria-label="Toggle theme">
-            {#if $dark}
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-            {:else}
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-            {/if}
-          </button>
-          <!-- Back to landing -->
-          <button class="icon-btn landing-back" on:click={() => appMode.set('landing')} title="Back to home">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+  <!-- ── LEFT SIDEBAR ── -->
+  <aside class="sidebar">
+    <!-- Nav items -->
+    <nav class="sb-nav">
+      {#each nav as n}
+        <button
+          class="sb-item"
+          class:active={$currentPage === n.page}
+          on:click={() => navigate(n.page)}
+          title={expanded ? '' : n.label}
+        >
+          <span class="sb-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d={n.icon}/>
             </svg>
-          </button>
-          <!-- Write / Search -->
-          <button class="icon-btn" on:click={() => navigate('home')} title="New search">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
-            </svg>
-            <span class="icon-btn-label">Write</span>
-          </button>
+          </span>
+          <span class="sb-label">{n.label}</span>
+        </button>
+      {/each}
+    </nav>
 
-          <!-- Notifications -->
-          <div class="rel" role="none" on:click|stopPropagation>
-            <button class="icon-btn" on:click={openNotif} aria-label="Notifications">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
-              </svg>
-              {#if $unreadCount > 0}
-                <span class="notif-badge">{$unreadCount > 9 ? '9+' : $unreadCount}</span>
-              {/if}
-            </button>
-            {#if showNotif}
-              <div class="dropdown notif-dropdown">
-                <div class="dropdown-header">
-                  <span class="dropdown-title">Notifications</span>
-                  <button class="dropdown-action" on:click={markAllRead}>Mark all read</button>
-                </div>
-                {#if $notifications.length === 0}
-                  <div class="dropdown-empty">You're all caught up</div>
-                {:else}
-                  {#each $notifications as n}
-                    <div class="notif-item" class:unread={!n.read}>
-                      <span class="n-dot" class:read={n.read}></span>
-                      <div class="n-body">
-                        <div class="n-text">{n.text}</div>
-                        <div class="n-time">{n.time}</div>
-                      </div>
-                    </div>
-                  {/each}
-                {/if}
-              </div>
-            {/if}
-          </div>
-
-          <!-- User menu -->
-          <div class="rel" role="none" on:click|stopPropagation>
-            <button class="avatar-btn" on:click={openUserMenu} aria-label="User menu">
-              <span class="user-avatar">{($user?.name ?? 'U')[0].toUpperCase()}</span>
-            </button>
-            {#if showUserMenu}
-              <div class="dropdown user-dropdown">
-                <div class="user-dropdown-profile">
-                  <span class="user-avatar user-avatar-lg">{($user?.name ?? 'U')[0].toUpperCase()}</span>
-                  <div>
-                    <div class="ud-name">{$user?.name}</div>
-                    <div class="ud-email">{$user?.email}</div>
-                  </div>
-                </div>
-                <div class="dropdown-divider"></div>
-                <button class="dropdown-item" on:click={() => navigate('dashboard')}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                  Dashboard
-                </button>
-                <button class="dropdown-item" on:click={() => navigate('settings')}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-                  Settings
-                </button>
-                <button class="dropdown-item" on:click={() => appMode.set('admin')}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                  Admin Panel
-                </button>
-                <div class="dropdown-divider"></div>
-                <button class="dropdown-item danger" on:click={logout}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-                  Sign out
-                </button>
-              </div>
-            {/if}
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <!-- Pipeline banner -->
-    {#if $pipelineFlag === 'OFF'}
-      <div class="pipeline-banner off">
-        <span>Pipeline is <strong>OFF</strong> — Nightly runs are halted.</span>
-        <button class="banner-btn" on:click={() => navigate('settings')}>Manage →</button>
-      </div>
-    {:else if $pipelineFlag === 'PAUSE'}
-      <div class="pipeline-banner pause">
-        <span>Pipeline is <strong>PAUSED</strong> — Nightly runs will be skipped silently.</span>
-        <button class="banner-btn" on:click={() => navigate('settings')}>Manage →</button>
+    <!-- Pipeline status dot -->
+    {#if $pipelineFlag === 'OFF' || $pipelineFlag === 'PAUSE'}
+      <div class="sb-status" class:status-off={$pipelineFlag==='OFF'} class:status-pause={$pipelineFlag==='PAUSE'}>
+        <span class="sb-status-dot"></span>
+        <span class="sb-label sb-status-label">Pipeline {$pipelineFlag}</span>
       </div>
     {/if}
+  </aside>
 
+  <!-- ── TOP BAR ── -->
+  <header class="topbar">
+    <!-- Left: logo + search -->
+    <div class="topbar-left">
+      <button class="toggle-btn" on:click={() => expanded = !expanded} aria-label="Toggle sidebar">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <line x1="3" y1="6"  x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+      <button class="logo" on:click={() => navigate('home')}>BlogCurate</button>
+
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <div class="search-wrap" role="none" on:click|stopPropagation>
+        {#if showSearch}
+          <div class="search-open">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon-inner">
+              <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+            </svg>
+            <input
+              class="search-input"
+              bind:value={searchInput}
+              placeholder="Search BlogCurate"
+              on:keydown={onSearchKey}
+              autofocus
+            />
+            <button class="search-esc" on:click={() => { showSearch = false; searchInput = ''; }}>✕</button>
+          </div>
+        {:else}
+          <button class="search-pill" on:click={() => showSearch = true}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+            </svg>
+            <span>Search</span>
+          </button>
+        {/if}
+      </div>
+    </div>
+
+    <!-- Right: write + theme + notif + avatar -->
+    <div class="topbar-right">
+
+      <button class="write-btn" on:click={() => navigate('interested')}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+        Write
+      </button>
+
+      <button class="tb-icon-btn" on:click={toggleTheme} title="Toggle theme">
+        {#if $dark}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="5"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+        {:else}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+          </svg>
+        {/if}
+      </button>
+
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <div class="tb-drop-wrap" role="none" on:click|stopPropagation>
+        <button class="tb-icon-btn" on:click={openNotif} title="Notifications">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
+          </svg>
+          {#if $unreadCount > 0}
+            <span class="notif-dot">{$unreadCount > 9 ? '9+' : $unreadCount}</span>
+          {/if}
+        </button>
+        {#if showNotif}
+          <div class="drop-panel notif-panel">
+            <div class="drop-head">
+              <span class="drop-title">Notifications</span>
+              <button class="drop-mark" on:click={markAllRead}>Mark all read</button>
+            </div>
+            {#if $notifications.length === 0}
+              <p class="drop-empty">You're all caught up</p>
+            {:else}
+              {#each $notifications as n}
+                <div class="notif-row" class:unread={!n.read}>
+                  <span class="notif-row-dot" class:read={n.read}></span>
+                  <div>
+                    <div class="notif-row-text">{n.text}</div>
+                    <div class="notif-row-time">{n.time}</div>
+                  </div>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        {/if}
+      </div>
+
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <div class="tb-drop-wrap" role="none" on:click|stopPropagation>
+        <button class="avatar-btn" on:click={openUserMenu}>
+          <span class="avatar">{($user?.name ?? 'U')[0].toUpperCase()}</span>
+        </button>
+        {#if showUserMenu}
+          <div class="drop-panel user-panel">
+            <div class="drop-profile">
+              <span class="avatar avatar-lg">{($user?.name ?? 'U')[0].toUpperCase()}</span>
+              <div>
+                <div class="drop-name">{$user?.name}</div>
+                <div class="drop-email">{$user?.email}</div>
+              </div>
+            </div>
+            <div class="drop-divider"></div>
+            <button class="drop-item" on:click={() => navigate('dashboard')}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              Dashboard
+            </button>
+            <button class="drop-item" on:click={() => appMode.set('admin')}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Admin Panel
+            </button>
+            <button class="drop-item" on:click={() => appMode.set('landing')}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+              Landing Page
+            </button>
+            <div class="drop-divider"></div>
+            <button class="drop-item danger" on:click={logout}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+              Sign out
+            </button>
+          </div>
+        {/if}
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ── PAGE CONTENT ── -->
+  <main class="page-area">
     {#if showOnboarding}
       <OnboardingModal on:close={() => { showOnboarding = false; }} />
     {/if}
+    {#if $currentPage === 'home'}        <HomePage />
+    {:else if $currentPage === 'discover'}   <DiscoverPage />
+    {:else if $currentPage === 'preview'}    <PreviewPage />
+    {:else if $currentPage === 'dashboard'}  <DashboardPage />
+    {:else if $currentPage === 'settings'}   <SettingsPage />
+    {:else if $currentPage === 'scheduled'}  <ScheduledPage />
+    {:else if $currentPage === 'published'}  <PublishedPage />
+    {:else if $currentPage === 'interested'} <InterestedPage />
+    {:else if $currentPage === 'rejected'}   <RejectedPage />
+    {:else if $currentPage === 'stories'}    <StoriesPage />
+    {:else if $currentPage === 'stats'}      <StatsPage />
+    {:else if $currentPage === 'following'}  <FollowingPage />
+    {:else if $currentPage === 'bookmarks'}  <StoriesPage />
+    {:else if $currentPage === 'article'}    <BlogDetailPage />
+    {/if}
+  </main>
 
-    <!-- Page -->
-    <main class="main-content">
-      {#if $currentPage === 'home'}        <HomePage />
-      {:else if $currentPage === 'discover'}   <DiscoverPage />
-      {:else if $currentPage === 'preview'}    <PreviewPage />
-      {:else if $currentPage === 'dashboard'}  <DashboardPage />
-      {:else if $currentPage === 'settings'}   <SettingsPage />
-      {:else if $currentPage === 'scheduled'}  <ScheduledPage />
-      {:else if $currentPage === 'published'}  <PublishedPage />
-      {:else if $currentPage === 'interested'} <InterestedPage />
-      {:else if $currentPage === 'rejected'}   <RejectedPage />
-      {/if}
-    </main>
-  </div>
+</div>
 {/if}
 
 <style>
-  .shell { min-height: 100vh; display: flex; flex-direction: column; background: var(--white); }
-
-  /* ── Top nav ── */
-  .topnav {
-    position: sticky; top: 0; z-index: 200;
-    background: var(--white); border-bottom: 1px solid var(--divider);
-  }
-  .topnav-inner {
-    max-width: 1192px; margin: 0 auto;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 24px; height: 57px;
+  /* ─── Shell ─────────────────────────────────────────────── */
+  .shell {
+    display: flex;
+    min-height: 100vh;
+    background: var(--white);
   }
 
-  .topnav-left { display: flex; align-items: center; gap: 8px; }
+  /* ─── Sidebar ────────────────────────────────────────────── */
+  .sidebar {
+    position: fixed; top: 57px; left: 0; bottom: 0;
+    width: 0;
+    display: flex; flex-direction: column;
+    background: var(--white);
+    border-right: 1px solid rgba(0,0,0,0.06);
+    z-index: 300;
+    overflow: hidden;
+    transition: width 0.3s ease-in-out;
+  }
+  .shell.expanded .sidebar { width: 260px; }
 
-  .back-btn {
-    display: flex; align-items: center; justify-content: center;
-    width: 32px; height: 32px; border-radius: 50%;
-    background: none; border: 1px solid var(--divider);
-    color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+  /* Nav */
+  .sb-nav {
+    flex: 1;
+    display: flex; flex-direction: column;
+    padding: 8px 0;
+    overflow: hidden;
+  }
+  .sb-item {
+    display: flex; align-items: center;
+    height: 44px;
+    padding: 0 16px;
+    gap: 12px;
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); font-family: var(--sans);
+    white-space: nowrap; overflow: hidden;
+    text-align: left;
+    box-shadow: inset 3px 0 0 transparent;
+    transition: color 0.15s, box-shadow 0.15s;
     flex-shrink: 0;
   }
-  .back-btn:hover { background: var(--off-white); color: var(--text-black); border-color: var(--divider-strong); }
+  .sb-item:hover { color: var(--green, #1a8917); box-shadow: inset 3px 0 0 var(--green, #1a8917); }
+  .sb-item.active { color: var(--green, #1a8917); box-shadow: inset 3px 0 0 var(--green, #1a8917); }
+  .sb-item.active .sb-icon svg { stroke-width: 2.2; }
 
-  .logo-btn {
-    font-family: var(--serif); font-size: 22px; font-weight: 700; letter-spacing: -0.3px;
-    color: var(--text-black); background: none; border: none; cursor: pointer; padding: 0;
+  .sb-icon {
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; width: 24px; height: 24px;
+    opacity: 1;
+  }
+
+  .sb-label {
+    font-size: 14px; font-weight: 400;
+    opacity: 0;
+    transform: translateX(-15px);
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+    pointer-events: none;
     white-space: nowrap;
   }
+  .sb-item.active .sb-label { font-weight: 500; }
 
-  /* Nav links with active underline */
-  .topnav-links { display: flex; align-items: center; gap: 0; }
-  .nav-link {
+  /* Staggered label fade-in — icons stay visible alongside labels */
+  .shell.expanded .sb-nav .sb-item:nth-child(1) .sb-label { opacity: 1; transform: translateX(0); transition-delay: 0ms; }
+  .shell.expanded .sb-nav .sb-item:nth-child(2) .sb-label { opacity: 1; transform: translateX(0); transition-delay: 40ms; }
+  .shell.expanded .sb-nav .sb-item:nth-child(3) .sb-label { opacity: 1; transform: translateX(0); transition-delay: 80ms; }
+  .shell.expanded .sb-nav .sb-item:nth-child(4) .sb-label { opacity: 1; transform: translateX(0); transition-delay: 120ms; }
+  .shell.expanded .sb-nav .sb-item:nth-child(5) .sb-label { opacity: 1; transform: translateX(0); transition-delay: 160ms; }
+  .shell.expanded .sb-nav .sb-item:nth-child(6) .sb-label { opacity: 1; transform: translateX(0); transition-delay: 200ms; }
+  .shell.expanded .sb-nav .sb-item:nth-child(7) .sb-label { opacity: 1; transform: translateX(0); transition-delay: 240ms; }
+
+  /* Pipeline status */
+  .sb-status {
+    display: flex; align-items: center;
+    height: 44px; padding: 0 16px; gap: 12px;
+    flex-shrink: 0; overflow: hidden;
+    box-shadow: inset 3px 0 0 transparent;
+    transition: box-shadow 0.15s;
+  }
+  .sb-status:hover { box-shadow: inset 3px 0 0 currentColor; }
+  .sb-status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0; background: currentColor;
+  }
+  .status-off   { color: var(--red,#dc2626); }
+  .status-pause { color: var(--amber,#d97706); }
+  .sb-status-label {
+    font-size: 12px; font-weight: 600;
+  }
+
+  /* ─── Top bar ────────────────────────────────────────────── */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: 57px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+    background: var(--white);
+    border-bottom: 1px solid rgba(0,0,0,0.09);
+    z-index: 400;
+  }
+
+  .toggle-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px;
     background: none; border: none; cursor: pointer;
-    font-size: 14px; color: var(--text-muted); font-family: var(--sans);
-    padding: 0 14px; height: 57px; position: relative;
-    transition: color 0.15s; letter-spacing: 0.01em;
+    color: var(--text-muted);
+    border-radius: 6px;
+    transition: color 0.15s, background 0.15s;
+    flex-shrink: 0;
   }
-  .nav-link:hover { color: var(--text-black); }
-  .nav-link.active { color: var(--text-black); font-weight: 500; }
-  .nav-link.active::after {
-    content: ''; position: absolute; bottom: 0; left: 14px; right: 14px;
-    height: 2px; background: var(--text-black); border-radius: 2px 2px 0 0;
+  .toggle-btn:hover { color: var(--text-black); background: rgba(0,0,0,0.05); }
+
+  .topbar-left {
+    display: flex; align-items: center; gap: 20px;
+  }
+  .topbar-right {
+    display: flex; align-items: center; gap: 2px;
   }
 
-  .topnav-right { display: flex; align-items: center; gap: 4px; }
-  .landing-back { color: var(--text-hint); }
-  .landing-back:hover { color: var(--text-black); }
-  .rel { position: relative; }
+  /* Logo — Medium uses GT Super / Sohne, we use Source Serif */
+  .logo {
+    font-family: var(--serif); font-size: 22px; font-weight: 700;
+    letter-spacing: -0.5px; color: var(--text-black);
+    background: none; border: none; cursor: pointer; padding: 0;
+    white-space: nowrap; line-height: 1;
+  }
 
-  /* Icon buttons */
-  .icon-btn {
-    display: flex; align-items: center; gap: 6px;
+  /* Search pill — Medium: light gray bg, no border, ~240px, 38px tall */
+  .search-wrap { position: relative; }
+  .search-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #f2f2f2; border: none; border-radius: 99px;
+    height: 38px; padding: 0 18px;
+    color: #6b6b6b; font-size: 14px; font-family: var(--sans);
+    cursor: pointer; width: 242px;
+    transition: background 0.15s;
+  }
+  .dark .search-pill { background: var(--off-white); }
+  .search-pill:hover { background: #e8e8e8; }
+  .dark .search-pill:hover { background: var(--divider); }
+  .search-pill span { flex: 1; text-align: left; }
+
+  .search-open {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--white);
+    border: 1.5px solid var(--text-black);
+    border-radius: 99px; height: 38px; padding: 0 14px;
+    width: 280px;
+  }
+  .search-icon-inner { color: var(--text-muted); flex-shrink: 0; }
+  .search-input {
+    flex: 1; border: none; background: transparent; outline: none;
+    font-size: 14px; color: var(--text-black); font-family: var(--sans);
+    padding: 0;
+  }
+  .search-input::placeholder { color: var(--text-hint); }
+  .search-esc {
     background: none; border: none; cursor: pointer;
-    color: var(--text-muted); padding: 6px 10px; border-radius: 100px;
-    transition: color 0.15s, background 0.15s; font-size: 13px;
+    font-size: 13px; color: var(--text-muted); padding: 2px 4px;
+    transition: color 0.12s; line-height: 1;
   }
-  .icon-btn:hover { color: var(--text-black); background: var(--off-white); }
-  .icon-btn-label { font-family: var(--sans); font-size: 13px; }
+  .search-esc:hover { color: var(--text-black); }
 
-  /* Notification badge */
-  .notif-badge {
-    position: absolute; top: 3px; right: 6px;
-    min-width: 15px; height: 15px;
-    background: var(--red); color: var(--white);
-    border-radius: 99px; font-size: 9px; font-weight: 700;
-    display: flex; align-items: center; justify-content: center; padding: 0 3px;
-    pointer-events: none;
+  /* Write button — Medium: green filled pill */
+  .write-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--green, #1a8917); color: #fff;
+    border: none; border-radius: 99px;
+    height: 38px; padding: 0 20px;
+    font-size: 14px; font-weight: 500; font-family: var(--sans);
+    cursor: pointer; white-space: nowrap;
+    transition: background 0.15s;
+    margin-right: 4px;
+  }
+  .write-btn:hover { background: var(--green-dark, #156912); }
+
+  /* Icon buttons in topbar — 40×40 circle */
+  .tb-icon-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; border-radius: 50%;
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); position: relative;
+    transition: background 0.15s, color 0.15s;
+  }
+  .tb-icon-btn:hover { background: rgba(0,0,0,0.06); color: var(--text-black); }
+  .dark .tb-icon-btn:hover { background: rgba(255,255,255,0.08); }
+
+  /* Notification red dot badge */
+  .notif-dot {
+    position: absolute; top: 6px; right: 5px;
+    min-width: 15px; height: 15px; border-radius: 99px;
+    background: #e53e3e; color: #fff;
+    font-size: 9px; font-weight: 700; font-family: var(--sans);
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 3px; pointer-events: none;
+    border: 2px solid var(--white);
   }
 
   /* Avatar button */
   .avatar-btn {
-    background: none; border: none; cursor: pointer; padding: 4px;
-    border-radius: 50%; transition: opacity 0.15s;
+    display: flex; background: none; border: none; cursor: pointer;
+    padding: 4px; border-radius: 50%;
+    transition: opacity 0.15s;
   }
-  .avatar-btn:hover { opacity: 0.8; }
-  .user-avatar {
+  .avatar-btn:hover { opacity: 0.82; }
+  .avatar {
     width: 32px; height: 32px; border-radius: 50%;
     background: var(--text-black); color: var(--white);
     display: flex; align-items: center; justify-content: center;
     font-size: 13px; font-weight: 600; font-family: var(--sans);
-    user-select: none;
+    user-select: none; flex-shrink: 0;
   }
-  .user-avatar-lg { width: 40px; height: 40px; font-size: 16px; flex-shrink: 0; }
+  .avatar-lg { width: 38px; height: 38px; font-size: 15px; }
 
-  /* Dropdowns */
-  .dropdown {
-    position: absolute; top: calc(100% + 10px); right: 0;
-    background: var(--white); border: 1px solid var(--divider);
-    border-radius: 8px; z-index: 400;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.08); overflow: hidden;
+  /* Dropdown panels */
+  .tb-drop-wrap { position: relative; }
+  .drop-panel {
+    position: absolute; top: calc(100% + 8px); right: 0;
+    background: var(--white); border: 1px solid rgba(0,0,0,0.09);
+    border-radius: 4px; z-index: 600;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    overflow: hidden;
+    animation: fadeDown 0.12s ease;
   }
-  .notif-dropdown { min-width: 320px; }
-  .user-dropdown  { min-width: 220px; }
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .notif-panel { width: 336px; }
+  .user-panel  { width: 224px; }
 
-  .dropdown-header {
+  .drop-head {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 18px 12px;
+    padding: 16px 20px 12px;
   }
-  .dropdown-title { font-size: 14px; font-weight: 600; color: var(--text-black); }
-  .dropdown-action {
-    font-size: 12px; color: var(--green); background: none;
+  .drop-title { font-size: 14px; font-weight: 600; color: var(--text-black); }
+  .drop-mark {
+    font-size: 13px; color: var(--green,#1a8917); background: none;
     border: none; cursor: pointer; font-family: var(--sans); padding: 0;
   }
-  .dropdown-action:hover { text-decoration: underline; }
-  .dropdown-divider { border-top: 1px solid var(--divider); margin: 4px 0; }
-  .dropdown-empty {
-    padding: 24px 18px; font-size: 13px; color: var(--text-muted); text-align: center;
+  .drop-mark:hover { text-decoration: underline; }
+  .drop-empty {
+    padding: 24px 20px; font-size: 14px; color: var(--text-muted); text-align: center;
   }
-  .dropdown-item {
-    display: flex; align-items: center; gap: 10px; padding: 10px 18px;
-    cursor: pointer; font-size: 14px; color: var(--text-body); font-family: var(--sans);
-    background: none; border: none; width: 100%; text-align: left; transition: background 0.1s;
-  }
-  .dropdown-item:hover { background: var(--off-white); }
-  .dropdown-item.danger { color: var(--red); }
-  .dropdown-item svg { color: var(--text-muted); flex-shrink: 0; }
+  .drop-divider { border-top: 1px solid rgba(0,0,0,0.09); margin: 4px 0; }
 
-  /* Notification items */
-  .notif-item {
-    display: flex; gap: 12px; padding: 12px 18px;
-    border-top: 1px solid var(--divider); transition: background 0.1s;
+  .drop-profile {
+    display: flex; align-items: center; gap: 12px; padding: 16px 20px 12px;
   }
-  .notif-item.unread { background: var(--off-white); }
-  .notif-item:hover { background: var(--off-white); }
-  .n-body { flex: 1; }
-  .n-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-top: 5px; flex-shrink: 0; }
-  .n-dot.read { background: var(--divider); }
-  .n-text { font-size: 13px; color: var(--text-body); line-height: 1.5; }
-  .n-time { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+  .drop-name  { font-size: 14px; font-weight: 600; color: var(--text-black); }
+  .drop-email { font-size: 13px; color: var(--text-muted); margin-top: 1px; }
 
-  /* User dropdown profile block */
-  .user-dropdown-profile {
-    display: flex; align-items: center; gap: 12px;
-    padding: 16px 18px 14px;
+  .drop-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 20px;
+    background: none; border: none; width: 100%; text-align: left;
+    font-size: 14px; color: var(--text-body); font-family: var(--sans);
+    cursor: pointer; transition: background 0.1s;
   }
-  .ud-name { font-size: 14px; font-weight: 600; color: var(--text-black); }
-  .ud-email { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+  .drop-item:hover { background: var(--off-white); }
+  .drop-item.danger { color: var(--red,#dc2626); }
+  .drop-item svg { color: var(--text-muted); flex-shrink: 0; }
 
-  /* Pipeline banner */
-  .pipeline-banner {
-    display: flex; align-items: center; justify-content: center; gap: 16px;
-    padding: 9px 24px; font-size: 13px;
-    border-bottom: 1px solid var(--divider);
+  .notif-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 20px; border-top: 1px solid rgba(0,0,0,0.06);
+    transition: background 0.1s;
   }
-  .pipeline-banner.off   { background: var(--red-light);   color: var(--red); }
-  .pipeline-banner.pause { background: var(--amber-light); color: var(--amber); }
-  .banner-btn {
-    background: none; border: none; cursor: pointer;
-    font-size: 13px; font-weight: 500; font-family: var(--sans);
-    color: inherit; text-decoration: underline; padding: 0;
+  .notif-row.unread { background: #fafafa; }
+  .dark .notif-row.unread { background: var(--off-white); }
+  .notif-row:hover { background: var(--off-white); }
+  .notif-row-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green,#1a8917); margin-top: 4px; flex-shrink: 0;
   }
+  .notif-row-dot.read { background: var(--divider); }
+  .notif-row-text { font-size: 13px; color: var(--text-body); line-height: 1.45; }
+  .notif-row-time { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 
-  .main-content { flex: 1; }
+  /* ─── Page area ──────────────────────────────────────────── */
+  .page-area {
+    flex: 1;
+    padding-top: 57px;
+    min-height: 100vh;
+    transition: padding-left 0.3s ease-in-out;
+  }
+  .shell.expanded .page-area { padding-left: 260px; }
 
-  @media (max-width: 768px) {
-    .topnav-inner { padding: 0 16px; }
-    .topnav-links { display: none; }
-    .icon-btn-label { display: none; }
+  /* ─── Responsive ─────────────────────────────────────────── */
+  @media (max-width: 904px) {
+    .search-pill { width: 180px; }
+  }
+  @media (max-width: 728px) {
+    .topbar { padding: 0 16px; }
+    .search-pill { display: none; }
+    .logo { font-size: 19px; }
   }
 </style>

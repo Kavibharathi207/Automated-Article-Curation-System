@@ -9,12 +9,12 @@
   import AdminSettings   from '../pages/admin/AdminSettings.svelte';
   import { onMount } from 'svelte';
 
-  // Force re-auth and reset to dashboard every time admin panel is opened
+  let sidebarOpen = false;
+
+  // Reset login error on open, but preserve existing session
   onMount(() => {
-    isLoggedIn.set(false);
     loginError.set('');
-    currentAdminPage.set('dashboard');
-    localStorage.removeItem('admin_key');
+    if (!$isLoggedIn) currentAdminPage.set('login');
   });
 
   const nav = [
@@ -38,9 +38,14 @@
     <!-- Black top nav -->
     <header class="admin-nav">
       <div class="admin-nav-left">
+        <button class="hamburger" on:click={() => sidebarOpen = !sidebarOpen} aria-label="Toggle sidebar">
+          <span class:open={sidebarOpen}></span>
+          <span class:open={sidebarOpen}></span>
+          <span class:open={sidebarOpen}></span>
+        </button>
         <button class="admin-logo" on:click={() => currentAdminPage.set('dashboard')}>
           <span class="pipeline-dot {dotClass}"></span>
-          ACS
+          BlogCurate
         </button>
         <nav class="admin-nav-links">
           {#each nav as n}
@@ -80,8 +85,31 @@
       </div>
     </header>
 
-    <!-- Page content -->
-    <main class="admin-main">
+    <!-- Sidebar overlay -->
+    {#if sidebarOpen}
+      <div class="sidebar-overlay" on:click={() => sidebarOpen = false}></div>
+    {/if}
+
+    <!-- Slide-in sidebar -->
+    <aside class="sidebar" class:sidebar-open={sidebarOpen}>
+      <div class="sidebar-header">
+        <span class="sidebar-brand">BlogCurate</span>
+      </div>
+      <nav class="sidebar-nav">
+        {#each nav as n, i}
+          <button
+            class="sidebar-item"
+            class:sidebar-item-active={$currentAdminPage === n.page}
+            class:sidebar-item-visible={sidebarOpen}
+            style="transition-delay: {sidebarOpen ? i * 40 : 0}ms"
+            on:click={() => { currentAdminPage.set(n.page); sidebarOpen = false; }}
+          >{n.label}</button>
+        {/each}
+      </nav>
+    </aside>
+
+  <!-- Page content -->
+    <main class="admin-main" class:shifted={sidebarOpen}>
       <div class="page-container">
         {#if $currentAdminPage === 'dashboard'}    <AdminDashboard />
         {:else if $currentAdminPage === 'runs'}     <RunHistory />
@@ -96,7 +124,7 @@
 {/if}
 
 <style>
-  .admin-shell { min-height: 100vh; display: flex; flex-direction: column; background: var(--white); }
+  .admin-shell { min-height: 100vh; display: flex; flex-direction: column; background: var(--white); position: relative; }
 
   /* Black nav */
   .admin-nav {
@@ -110,8 +138,9 @@
 
   .admin-logo {
     display: flex; align-items: center; gap: 8px;
-    font-family: var(--serif); font-size: 18px; font-weight: 700;
+    font-family: var(--serif); font-size: 22px; font-weight: 700;
     color: #fff; background: none; border: none; cursor: pointer; padding: 0;
+    letter-spacing: -0.3px;
   }
   .pipeline-dot {
     width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
@@ -175,8 +204,75 @@
 
   .admin-main { flex: 1; }
 
+  /* Hamburger */
+  .hamburger {
+    display: flex; flex-direction: column; justify-content: center; gap: 5px;
+    width: 36px; height: 36px; background: none; border: none; cursor: pointer;
+    padding: 6px; border-radius: 4px; transition: background 0.15s;
+  }
+  .hamburger:hover { background: rgba(255,255,255,0.1); }
+  .hamburger span {
+    display: block; height: 2px; background: #fff; border-radius: 2px;
+    transition: all 0.3s ease-in-out; transform-origin: center;
+  }
+  .hamburger span:nth-child(1).open { transform: translateY(7px) rotate(45deg); }
+  .hamburger span:nth-child(2).open { opacity: 0; transform: scaleX(0); }
+  .hamburger span:nth-child(3).open { transform: translateY(-7px) rotate(-45deg); }
+
+  /* Overlay */
+  .sidebar-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    z-index: 150; animation: fadeIn 0.3s ease-in-out;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* Sidebar */
+  .sidebar {
+    position: fixed; top: 56px; left: 0; bottom: 0;
+    width: 0; overflow: hidden;
+    background: var(--black); border-right: 1px solid #2A2A2A;
+    z-index: 160;
+    transition: width 0.3s ease-in-out;
+  }
+  .sidebar-open { width: 280px; }
+
+  .sidebar-header {
+    padding: 24px 24px 16px;
+    border-bottom: 1px solid #2A2A2A;
+  }
+  .sidebar-brand {
+    font-family: var(--serif); font-size: 20px; font-weight: 700;
+    color: #fff; white-space: nowrap;
+  }
+
+  .sidebar-nav {
+    display: flex; flex-direction: column; padding: 12px 0;
+  }
+
+  .sidebar-item {
+    display: flex; align-items: center;
+    padding: 12px 24px; font-size: 15px; font-family: var(--sans);
+    font-weight: 500; color: #999; background: none; border: none;
+    cursor: pointer; text-align: left; white-space: nowrap;
+    opacity: 0; transform: translateX(-15px);
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out, color 0.15s, background 0.15s;
+  }
+  .sidebar-item-visible {
+    opacity: 1; transform: translateX(0);
+  }
+  .sidebar-item:hover { color: #fff; background: rgba(255,255,255,0.06); }
+  .sidebar-item-active { color: #fff; }
+
+  /* Main content shift */
+  .admin-main {
+    flex: 1;
+    transition: margin-left 0.3s ease-in-out;
+  }
+  .admin-main.shifted { margin-left: 280px; }
+
   @media (max-width: 768px) {
     .admin-nav { padding: 0 16px; }
     .admin-nav-links { display: none; }
+    .admin-main.shifted { margin-left: 0; }
   }
 </style>

@@ -5,7 +5,6 @@
   $: rejectedBlogs = mockBlogs.filter(b => $rejectedIds.includes(b.id));
 
   function restore(blog) {
-    rejectedIds.update(r => r.filter(id => id !== blog.id));
     interestBlog(blog);
   }
 

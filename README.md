@@ -6,17 +6,6 @@ BlogCurate is a modern, full-stack blog curation system built to aggregate, orga
 
 ---
 
-## 🏢 Project Context
-
-| Detail | Info |
-|---|---|
-| 🏬 Organization | Infinit Solutions, Vadavalli, Coimbatore |
-| 📌 Type | Client Project — Internship |
-| 👩‍💻 Frontend | Kavibharathi *(also assisted in backend integration)* |
-| 👩‍💻 Backend | Kaviya *(also collaborated on editorial data design)* |
-
----
-
 ## ⚙️ Tech Stack
 
 | Technology | Purpose |
@@ -174,4 +163,4 @@ This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-<p align="center">Built with ❤️ during internship at <strong>Infinit Solutions</strong>, Vadavalli, Coimbatore</p>
+<p align="center">Developed as part of a client project during an internship at <strong>Infinit Solutions</strong>, Vadavalli, Coimbatore.</p>

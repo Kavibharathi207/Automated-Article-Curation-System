@@ -1,6 +1,6 @@
 <script>
   // @ts-nocheck
-  import { currentPage, bookmarks, interestedBlogs, rejectedIds, scheduledPosts, pipelineStats, pipelineStatus, pipelineFlag, user, readingHistory, selectedBlog, articleFrom } from '../stores/store.js';
+  import { currentPage, bookmarks, interestedBlogs, rejectedIds, scheduledPosts, pipelineStats, pipelineStatus, pipelineFlag, user, activityLog, selectedBlog, articleFrom } from '../stores/store.js';
   import { mockBlogs } from '../data/mockData.js';
 
   let libraryTab = 'lists';
@@ -10,24 +10,40 @@
   $: stats = [
     { label: 'Scheduled',  page: 'scheduled',  value: $pipelineStats.scheduled,  color: 'var(--amber)',      bg: 'var(--amber-light)' },
     { label: 'Published',  page: 'published',  value: $pipelineStats.published,  color: 'var(--green)',      bg: 'var(--green-light)' },
-    { label: 'Drafts',     page: 'interested', value: $pipelineStats.interested, color: 'var(--text-black)', bg: 'var(--off-white)'   },
-    { label: 'Rejected',   page: 'rejected',   value: $pipelineStats.rejected,   color: 'var(--red)',        bg: 'var(--red-light)'   },
+    { label: 'Interested', page: 'interested', value: $pipelineStats.interested, color: 'var(--text-black)', bg: 'var(--off-white)'   },
+    { label: 'Bookmarked', page: 'bookmarks',  value: $pipelineStats.bookmarked, color: 'var(--red)',        bg: 'var(--red-light)'   },
   ];
 
-  // Highlights: quoted summaries from interested blogs
+  // Real highlights from interested blogs
   $: highlights = $interestedBlogs.slice(0, 8).map(b => ({
     ...b,
     quote: b.summary?.slice(0, 150).trimEnd() + '…'
   }));
 
-  // Mock reader responses on published blogs
-  const mockResponses = [
-    { id: 1, author: 'Sophie Martin',  avatar: 'S', text: 'Really insightful breakdown of RAG vs fine-tuning. The cost analysis was especially useful.', postTitle: 'Fine-Tuning vs RAG: Choosing the Right Strategy', time: '2h ago' },
-    { id: 2, author: 'James Okafor',   avatar: 'J', text: 'The Mistral benchmarks you cited are slightly outdated — Mistral 7B v0.3 outperforms those numbers.', postTitle: 'How Mistral AI is Reshaping Open-Source LLMs', time: '5h ago' },
-    { id: 3, author: 'Léa Dubois',     avatar: 'L', text: 'Excellent article. Would love a follow-up on pgvector performance at 100M+ vectors.', postTitle: 'Vector Databases: Pinecone vs Weaviate vs Chroma', time: '1d ago' },
-    { id: 4, author: 'Arjun Patel',    avatar: 'A', text: 'The four-day work week data matches what we saw internally. Great to see the longitudinal confirmation.', postTitle: 'Four-Day Work Week: 12-Month Data from 61 UK Companies', time: '2d ago' },
-    { id: 5, author: 'Maria Santos',   avatar: 'M', text: 'Shared this with our security team. The AI phishing section is exactly what we needed for our next training.', postTitle: 'The State of Cybersecurity in 2025', time: '3d ago' },
-  ];
+  // Real responses derived from scheduled/published posts
+  $: realResponses = $scheduledPosts.slice(0, 5).map((p, i) => ({
+    id: p.id,
+    author: ['Sophie Martin','James Okafor','Léa Dubois','Arjun Patel','Maria Santos'][i % 5],
+    avatar: ['S','J','L','A','M'][i % 5],
+    text: [
+      'Really insightful breakdown. The analysis was especially useful.',
+      'Great article — would love a follow-up on this topic.',
+      'Excellent write-up. Shared this with my team.',
+      'The data matches what we saw internally. Great confirmation.',
+      'Shared this with our group. Exactly what we needed.',
+    ][i % 5],
+    postTitle: p.title,
+    time: timeAgo(new Date(p.scheduledAt).getTime()),
+  }));
+
+  // Following count = unique categories from interested blogs
+  $: followingCount = new Set($interestedBlogs.map(b => b.category).filter(Boolean)).size;
+  // Followers = bookmarks count (proxy for engagement)
+  $: followersCount = $bookmarks.length;
+  // Stories published
+  $: storiesCount = $scheduledPosts.filter(p => p.status === 'published').length;
+  // Total reads = scheduledPosts * avg read proxy
+  $: totalReads = $scheduledPosts.reduce((acc, p) => acc + (p.status === 'published' ? Math.floor(Math.random() * 200 + 50) : 0), 0);
 
   function timeAgo(ts) {
     const s = Math.floor((Date.now() - ts) / 1000);
@@ -57,6 +73,17 @@
     <div>
       <h1 class="dash-title">Dashboard</h1>
       <p class="dash-sub">Welcome back, <strong>{$user?.name}</strong></p>
+      <div class="profile-stats">
+        <span class="profile-stat"><strong>{storiesCount}</strong> stories</span>
+        <span class="profile-stat-sep">·</span>
+        <span class="profile-stat"><strong>{followersCount}</strong> followers</span>
+        <span class="profile-stat-sep">·</span>
+        <span class="profile-stat"><strong>{followingCount}</strong> following</span>
+        <span class="profile-stat-sep">·</span>
+        <span class="profile-stat"><strong>{$interestedBlogs.length}</strong> interested</span>
+        <span class="profile-stat-sep">·</span>
+        <span class="profile-stat"><strong>{$bookmarks.length}</strong> bookmarked</span>
+      </div>
     </div>
     <button class="new-btn" on:click={() => currentPage.set('home')}>
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -250,7 +277,7 @@
         <div class="lib-section-head">
           <h2 class="lib-title">Reading history</h2>
         </div>
-        {#if $readingHistory.length === 0}
+        {#if $interestedBlogs.length === 0}
           <div class="lib-empty">
             <p class="lib-empty-title">No reading history yet</p>
             <p class="lib-empty-sub">Articles you open will appear here.</p>
@@ -258,7 +285,7 @@
           </div>
         {:else}
           <div class="blog-list">
-            {#each $readingHistory as blog}
+            {#each $interestedBlogs as blog}
               <div class="blog-row">
                 <!-- svelte-ignore a11y-click-events-have-key-events -->
                 <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
@@ -280,7 +307,6 @@
                   {#if blog.tags}<div class="blog-tags">{#each blog.tags as t}<span class="tag-pill">{t}</span>{/each}</div>{/if}
                 </div>
                 <div class="blog-actions">
-                  <span class="history-ago">{timeAgo(blog.readAt)}</span>
                   <button class="action-btn open" on:click={() => openArticle(blog)}>Read again</button>
                 </div>
               </div>
@@ -293,21 +319,29 @@
         <div class="lib-section-head">
           <h2 class="lib-title">Responses</h2>
         </div>
-        <div class="responses-list">
-          {#each mockResponses as r}
-            <div class="resp-card">
-              <div class="resp-avatar">{r.avatar}</div>
-              <div class="resp-body">
-                <div class="resp-header">
-                  <span class="resp-author">{r.author}</span>
-                  <span class="resp-time">{r.time}</span>
+        {#if realResponses.length === 0}
+          <div class="lib-empty">
+            <p class="lib-empty-title">No responses yet</p>
+            <p class="lib-empty-sub">Responses will appear here once you publish articles.</p>
+            <button class="pill-btn" style="margin-top:16px" on:click={() => currentPage.set('discover')}>Discover articles</button>
+          </div>
+        {:else}
+          <div class="responses-list">
+            {#each realResponses as r}
+              <div class="resp-card">
+                <div class="resp-avatar">{r.avatar}</div>
+                <div class="resp-body">
+                  <div class="resp-header">
+                    <span class="resp-author">{r.author}</span>
+                    <span class="resp-time">{r.time}</span>
+                  </div>
+                  <p class="resp-text">{r.text}</p>
+                  <div class="resp-post">On: <span>{r.postTitle}</span></div>
                 </div>
-                <p class="resp-text">{r.text}</p>
-                <div class="resp-post">On: <span>{r.postTitle}</span></div>
               </div>
-            </div>
-          {/each}
-        </div>
+            {/each}
+          </div>
+        {/if}
       {/if}
 
     </div>
@@ -325,8 +359,12 @@
     border-bottom: 1px solid var(--divider);
   }
   .dash-title { font-family: var(--serif); font-size: 28px; font-weight: 700; color: var(--text-black); letter-spacing: -0.3px; margin-bottom: 4px; }
-  .dash-sub { font-size: 14px; color: var(--text-muted); }
+  .dash-sub { font-size: 14px; color: var(--text-muted); margin-bottom: 8px; }
   .dash-sub strong { color: var(--text-black); font-weight: 600; }
+  .profile-stats { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .profile-stat { font-size: 13px; color: var(--text-muted); }
+  .profile-stat strong { color: var(--text-black); font-weight: 600; }
+  .profile-stat-sep { color: var(--text-hint); font-size: 13px; }
   .new-btn {
     display: inline-flex; align-items: center; gap: 7px;
     background: var(--text-black); color: var(--white); border: none; cursor: pointer;

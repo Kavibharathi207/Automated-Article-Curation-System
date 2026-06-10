@@ -1,46 +1,78 @@
 <script>
   import { pipelineStatus, setFlag } from '../../stores/store.js';
+  import { onMount, onDestroy } from 'svelte';
 
-  let runTime   = '02:00';
+  let activeAnchor = 's-general';
+  let runTime = '02:00';
   let tz        = 'Asia/Kolkata';
   let parallel  = true;
   let bilingual = false;
 
-  let cmsEndpoint = 'https://cms.example.com/api/v1';
-  let cmsApiKey   = 'sk-••••••••••••••••••••••••••••••••';
-  let cmsStatus   = 'connected';
-  let showKey     = false;
+  let siteName = 'BlogCurate';
+  let siteDesc = 'AI-powered blog curation platform';
+  let siteTZ   = 'Asia/Kolkata';
 
-  function testCms() {
-    cmsStatus = 'testing';
-    setTimeout(() => { cmsStatus = 'connected'; }, 1200);
-  }
-  function rotateKey() { cmsApiKey = 'sk-' + Math.random().toString(36).slice(2, 34); }
+  let aiModel          = 'gpt-4o';
+  let qualityThreshold = 80;
+  let dupSensitivity   = 'medium';
+  let autoPublish      = false;
+  const aiModels = ['gpt-4o','gpt-4-turbo','gpt-3.5-turbo','gemini-1.5-pro','claude-3-opus'];
+  const dupOpts  = ['low','medium','high'];
 
   let minRelevance  = 7.0;
   let minInnovation = 6.5;
 
+  let rssFeed   = 'https://techcrunch.com/feed/';
+  let newsApiKey = 'na-••••••••••••••••';
+  let mediumUser = '@yourusername';
+
+  let cmsEndpoint = 'https://cms.example.com/api/v1';
+  let cmsApiKey   = 'sk-••••••••••••••••••••••••••••••••';
+  let cmsStatus   = 'connected';
+  let showCmsKey  = false;
+  function testCms() { cmsStatus='testing'; setTimeout(()=>cmsStatus='connected',1200); }
+  function rotateCmsKey() { cmsApiKey='sk-'+Math.random().toString(36).slice(2,34); }
+
+  let emailAlerts  = true;
+  let failAlerts   = true;
+  let weeklyReport = false;
   let notifs = [
-    { label: 'Pipeline run completed',  hint: 'Alert when a run finishes successfully', on: true  },
-    { label: 'Pipeline failure',        hint: 'Immediate alert on any run error',       on: true  },
-    { label: 'New article published',   hint: 'Alert when an article goes live',        on: false },
-    { label: 'Theme calibrated',        hint: 'Alert after a theme recalibration',      on: false },
-    { label: 'Daily digest',            hint: 'Summary email every morning at 08:00',   on: true  },
+    { label:'Pipeline run completed', hint:'Alert when a run finishes successfully', on:true  },
+    { label:'Pipeline failure',       hint:'Immediate alert on any run error',       on:true  },
+    { label:'New article published',  hint:'Alert when an article goes live',        on:false },
+    { label:'Theme calibrated',       hint:'Alert after a theme recalibration',      on:false },
+    { label:'Daily digest',           hint:'Summary email every morning at 08:00',   on:true  },
   ];
+
+  const roles = [
+    { name:'Super Admin', perms:'Full access',           users:1 },
+    { name:'Editor',      perms:'Publish, edit, review', users:3 },
+    { name:'Viewer',      perms:'Read-only access',      users:7 },
+  ];
+
+  let autoBackup = true;
+  let backupFreq = 'daily';
+
+  let openaiKey  = 'sk-••••••••••••••••••••••••••••••••';
+  let geminiKey  = 'AIza••••••••••••••••••••••••••••••';
+  let newsKey    = 'na-••••••••••••••••';
+  let customKey  = '';
+  let showOpenai = false;
+  let showGemini = false;
+  let showNews   = false;
+
+  let twoFAEnabled   = false;
+  let sessionTimeout = 60;
+  let loginRestrict  = false;
 
   let dedupWindow = 30;
   let minWords    = 400;
   let maxWords    = 2000;
-  let bannedTerms = ['sponsored', 'advertisement', 'click here', 'buy now'];
+  let bannedTerms = ['sponsored','advertisement','click here','buy now'];
   let newTerm     = '';
-
-  function addTerm() {
-    const t = newTerm.trim().toLowerCase();
-    if (t && !bannedTerms.includes(t)) bannedTerms = [...bannedTerms, t];
-    newTerm = '';
-  }
-  function removeTerm(t) { bannedTerms = bannedTerms.filter(b => b !== t); }
-  function onTermKey(e) { if (e.key === 'Enter') addTerm(); }
+  function addTerm()    { const t=newTerm.trim().toLowerCase(); if(t&&!bannedTerms.includes(t))bannedTerms=[...bannedTerms,t]; newTerm=''; }
+  function removeTerm(t){ bannedTerms=bannedTerms.filter(b=>b!==t); }
+  function onTermKey(e) { if(e.key==='Enter')addTerm(); }
 
   let confirmReset  = false;
   let confirmPause  = false;
@@ -48,341 +80,769 @@
 
   let lastSaved = null;
   let saving    = false;
-
-  function save() {
-    saving = true;
-    setTimeout(() => { saving = false; lastSaved = new Date(); }, 700);
-  }
-  function fmtSaved(d) {
-    return d?.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  }
+  function save() { saving=true; setTimeout(()=>{ saving=false; lastSaved=new Date(); },700); }
+  function fmtSaved(d) { return d?.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
 
   $: flag = $pipelineStatus?.flag ?? 'ON';
+
+  const anchors = [
+    { id:'s-general',   label:'General'         },
+    { id:'s-pipeline',  label:'Pipeline'        },
+    { id:'s-ai',        label:'AI Config'       },
+    { id:'s-quality',   label:'Quality'         },
+    { id:'s-sources',   label:'Sources'         },
+    { id:'s-cms',       label:'CMS'             },
+    { id:'s-notifs',    label:'Notifications'   },
+    { id:'s-users',     label:'Users'           },
+    { id:'s-backup',    label:'Backup'          },
+    { id:'s-apikeys',   label:'API Keys'        },
+    { id:'s-security',  label:'Security'        },
+    { id:'s-content',   label:'Content Filters' },
+    { id:'s-danger',    label:'Danger Zone'     },
+  ];
+
+  function scrollTo(id) {
+    document.getElementById(id)?.scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+
+  onMount(() => {
+    const sectionIds = anchors.map(a => a.id);
+    const observers = [];
+    sectionIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const obs = new IntersectionObserver(
+        ([entry]) => { if (entry.isIntersecting) activeAnchor = id; },
+        { rootMargin: '-50px 0px -60% 0px', threshold: [0, 0.5] }
+      );
+      obs.observe(el);
+      observers.push(obs);
+    });
+    return () => observers.forEach(o => o.disconnect());
+  });
 </script>
 
-<div class="settings-page">
-  <h1 class="page-title">Settings</h1>
-  <div class="page-divider"></div>
+<div class="sp-root">
 
-  <!-- Pipeline Control -->
-  <div class="section">
-    <div class="section-head">
-      <div class="section-title">Pipeline Control</div>
-      <div class="section-desc">Scheduling, timezone, and processing options</div>
-    </div>
-    <div class="fields">
-      <div class="field-row">
-        <label class="field-label" for="run-time">Run Time</label>
-        <input id="run-time" type="time" bind:value={runTime} class="field-narrow" />
-      </div>
-      <div class="field-row">
-        <label class="field-label" for="run-tz">Timezone</label>
-        <select id="run-tz" bind:value={tz} class="field-narrow">
-          <option value="Asia/Kolkata">IST — Asia/Kolkata</option>
-          <option value="Europe/Paris">CET — Europe/Paris</option>
-          <option value="America/New_York">EST — America/New_York</option>
-          <option value="UTC">UTC</option>
-        </select>
-      </div>
-      <div class="field-row">
-        <div>
-          <div class="field-label">Parallel Processing</div>
-          <div class="field-hint">Run scoring and generation concurrently</div>
-        </div>
-        <button class="toggle" class:on={parallel} aria-label="Toggle parallel processing" on:click={() => parallel = !parallel}></button>
-      </div>
-      <div class="field-row">
-        <div>
-          <div class="field-label">Bilingual Mode</div>
-          <div class="field-hint">Generate articles in French &amp; English</div>
-        </div>
-        <button class="toggle" class:on={bilingual} aria-label="Toggle bilingual mode" on:click={() => bilingual = !bilingual}></button>
-      </div>
-    </div>
-  </div>
+  <!-- Sticky anchor nav -->
+  <aside class="sp-nav">
+    <div class="sp-nav-title">Settings</div>
+    {#each anchors as a}
+      <button
+        class="sp-anchor {a.id==='s-danger'?'sp-anchor-danger':''}"
+        class:sp-anchor-active={activeAnchor === a.id}
+        on:click={()=>scrollTo(a.id)}
+      >
+        {a.label}
+      </button>
+    {/each}
+  </aside>
 
-  <!-- CMS Connection -->
-  <div class="section">
-    <div class="section-head">
-      <div class="section-title">CMS Connection</div>
-      <div class="section-desc">Endpoint, credentials, and connection health</div>
-    </div>
-    <div class="fields">
-      <div class="field-row">
-        <label class="field-label" for="cms-endpoint">Endpoint URL</label>
-        <div class="inline-row">
-          <input id="cms-endpoint" bind:value={cmsEndpoint} placeholder="https://cms.example.com/api/v1" style="flex:1" />
-          <button class="btn btn-secondary btn-sm" on:click={testCms} disabled={cmsStatus === 'testing'}>
-            {cmsStatus === 'testing' ? 'Testing…' : 'Test'}
-          </button>
-        </div>
-      </div>
-      <div class="field-row">
-        <label class="field-label" for="cms-status">Connection Status</label>
-        <span id="cms-status" class="cms-pill {cmsStatus}">
-          {#if cmsStatus === 'connected'}✓ Connected
-          {:else if cmsStatus === 'testing'}⟳ Testing…
-          {:else}✗ Error{/if}
-        </span>
-      </div>
-      <div class="field-row">
-        <label class="field-label" for="cms-key">API Key</label>
-        <div class="inline-row">
-          {#if showKey}
-            <input id="cms-key" type="text" bind:value={cmsApiKey} style="flex:1;font-family:monospace;font-size:13px" />
-          {:else}
-            <input id="cms-key" type="password" bind:value={cmsApiKey} style="flex:1;font-family:monospace;font-size:13px" />
-          {/if}
-          <button class="btn btn-secondary btn-sm" on:click={() => showKey = !showKey}>{showKey ? 'Hide' : 'Show'}</button>
-          <button class="btn btn-secondary btn-sm" on:click={rotateKey}>Rotate</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- All sections in one scroll -->
+  <div class="sp-body">
 
-  <!-- Quality Thresholds -->
-  <div class="section">
-    <div class="section-head">
-      <div class="section-title">Quality Thresholds</div>
-      <div class="section-desc">Minimum scores required to pass the pipeline</div>
-    </div>
-    <div class="fields">
-      <div class="slider-row">
-        <div class="slider-top">
-          <span class="field-label">Relevance Minimum</span>
-          <span class="slider-val">{minRelevance.toFixed(1)}</span>
-        </div>
-        <input type="range" min="1" max="10" step="0.1" bind:value={minRelevance} class="slider" />
-        <div class="slider-ends"><span>1.0</span><span>10.0</span></div>
+    <!-- General -->
+    <section class="s-card" id="s-general">
+      <div class="s-head">
+        <div class="s-title">General Settings</div>
+        <div class="s-desc">Site identity and global configuration</div>
       </div>
-      <div class="slider-row">
-        <div class="slider-top">
-          <span class="field-label">Innovation Minimum</span>
-          <span class="slider-val">{minInnovation.toFixed(1)}</span>
+      <div class="s-fields">
+        <div class="s-row">
+          <label class="s-label" for="site-name">Site Name</label>
+          <input id="site-name" bind:value={siteName} class="s-input"/>
         </div>
-        <input type="range" min="1" max="10" step="0.1" bind:value={minInnovation} class="slider" />
-        <div class="slider-ends"><span>1.0</span><span>10.0</span></div>
+        <div class="s-row">
+          <label class="s-label" for="site-desc">Description</label>
+          <input id="site-desc" bind:value={siteDesc} class="s-input s-input-wide"/>
+        </div>
+        <div class="s-row">
+          <label class="s-label" for="site-tz">Time Zone</label>
+          <select id="site-tz" bind:value={siteTZ} class="s-select">
+            <option value="Asia/Kolkata">IST — Asia/Kolkata</option>
+            <option value="Europe/Paris">CET — Europe/Paris</option>
+            <option value="America/New_York">EST — America/New_York</option>
+            <option value="UTC">UTC</option>
+          </select>
+        </div>
+        <div class="s-row">
+          <label class="s-label">Logo</label>
+          <input type="file" accept="image/*" class="s-file"/>
+        </div>
       </div>
-    </div>
-  </div>
+    </section>
 
-  <!-- Notifications -->
-  <div class="section">
-    <div class="section-head">
-      <div class="section-title">Notifications</div>
-      <div class="section-desc">Choose which events trigger an alert</div>
-    </div>
-    <div class="fields">
-      {#each notifs as n}
-        <div class="field-row">
+    <!-- Pipeline -->
+    <section class="s-card" id="s-pipeline">
+      <div class="s-head">
+        <div class="s-title">Pipeline Control</div>
+        <div class="s-desc">Scheduling, timezone, and processing options</div>
+      </div>
+      <div class="s-fields">
+        <div class="s-row">
+          <label class="s-label" for="run-time">Run Time</label>
+          <input id="run-time" type="time" bind:value={runTime} class="s-select"/>
+        </div>
+        <div class="s-row">
+          <label class="s-label" for="run-tz">Timezone</label>
+          <select id="run-tz" bind:value={tz} class="s-select">
+            <option value="Asia/Kolkata">IST — Asia/Kolkata</option>
+            <option value="Europe/Paris">CET — Europe/Paris</option>
+            <option value="America/New_York">EST — America/New_York</option>
+            <option value="UTC">UTC</option>
+          </select>
+        </div>
+        <div class="s-row s-row-toggle">
           <div>
-            <div class="field-label">{n.label}</div>
-            <div class="field-hint">{n.hint}</div>
+            <div class="s-label">Parallel Processing</div>
+            <div class="s-hint">Run scoring and generation concurrently</div>
           </div>
-          <button class="toggle" class:on={n.on} aria-label="Toggle {n.label}" on:click={() => n.on = !n.on}></button>
+          <button class="tog" class:tog-on={parallel} on:click={()=>parallel=!parallel} aria-label="toggle"></button>
         </div>
-      {/each}
-    </div>
-  </div>
+        <div class="s-row s-row-toggle">
+          <div>
+            <div class="s-label">Bilingual Mode</div>
+            <div class="s-hint">Generate articles in French &amp; English</div>
+          </div>
+          <button class="tog" class:tog-on={bilingual} on:click={()=>bilingual=!bilingual} aria-label="toggle"></button>
+        </div>
+      </div>
+    </section>
 
-  <!-- Content Filters -->
-  <div class="section">
-    <div class="section-head">
-      <div class="section-title">Content Filters</div>
-      <div class="section-desc">Deduplication, banned terms, and word count limits</div>
-    </div>
-    <div class="fields">
-      <div class="field-row">
-        <div>
-          <div class="field-label">Deduplication Window</div>
-          <div class="field-hint">Days to look back when checking for duplicate content</div>
-        </div>
-        <div class="inline-row" style="width:auto;gap:8px">
-          <input type="number" bind:value={dedupWindow} min="1" max="365" style="width:80px;text-align:right" />
-          <span class="field-hint">days</span>
-        </div>
+    <!-- AI Config -->
+    <section class="s-card" id="s-ai">
+      <div class="s-head">
+        <div class="s-title">AI Configuration</div>
+        <div class="s-desc">Model selection, thresholds, and publishing rules</div>
       </div>
-      <div class="field-row">
-        <div>
-          <div class="field-label">Word Count Limits</div>
-          <div class="field-hint">Articles outside this range are rejected</div>
+      <div class="s-fields">
+        <div class="s-row">
+          <label class="s-label" for="ai-model">AI Model</label>
+          <select id="ai-model" bind:value={aiModel} class="s-select">
+            {#each aiModels as m}<option value={m}>{m}</option>{/each}
+          </select>
         </div>
-        <div class="inline-row" style="width:auto;gap:8px">
-          <span class="field-hint">Min</span>
-          <input type="number" bind:value={minWords} min="100" max="5000" style="width:80px;text-align:right" />
-          <span class="field-hint">–</span>
-          <span class="field-hint">Max</span>
-          <input type="number" bind:value={maxWords} min="100" max="20000" style="width:90px;text-align:right" />
+        <div class="s-row">
+          <label class="s-label" for="dup-sens">Duplicate Sensitivity</label>
+          <select id="dup-sens" bind:value={dupSensitivity} class="s-select" style="text-transform:capitalize">
+            {#each dupOpts as d}<option value={d} style="text-transform:capitalize">{d}</option>{/each}
+          </select>
         </div>
-      </div>
-      <div class="banned-section">
-        <div class="field-label" style="margin-bottom:12px">Banned Terms</div>
-        <div class="terms-row">
-          {#each bannedTerms as t}
-            <span class="term-pill">
-              {t}
-              <button on:click={() => removeTerm(t)}>×</button>
-            </span>
-          {/each}
-          <div class="term-add">
-            <input bind:value={newTerm} on:keydown={onTermKey} placeholder="Add term…" style="width:140px" />
-            <button class="btn btn-secondary btn-sm" on:click={addTerm}>Add</button>
+        <div class="s-row s-row-slider">
+          <div class="s-slider-top">
+            <div>
+              <div class="s-label">Content Quality Threshold</div>
+              <div class="s-hint">Minimum AI score to allow publishing</div>
+            </div>
+            <span class="s-slider-val">{qualityThreshold}%</span>
           </div>
+          <input type="range" min="50" max="100" bind:value={qualityThreshold} class="s-slider"/>
+          <div class="s-slider-ends"><span>50%</span><span>100%</span></div>
+        </div>
+        <div class="s-row s-row-toggle">
+          <div>
+            <div class="s-label">Auto Publishing</div>
+            <div class="s-hint">Automatically publish articles that pass all thresholds</div>
+          </div>
+          <button class="tog" class:tog-on={autoPublish} on:click={()=>autoPublish=!autoPublish} aria-label="toggle"></button>
         </div>
       </div>
-    </div>
-  </div>
+    </section>
 
-  <!-- Danger Zone -->
-  <div class="section danger-section">
-    <div class="section-head">
-      <div class="section-title" style="color:var(--red)">Danger Zone</div>
-      <div class="section-desc">Irreversible and disruptive actions — proceed with care</div>
-    </div>
-    <div class="fields">
-      <div class="field-row">
-        <div>
-          <div class="field-label" style="color:var(--red)">Reset Deduplication Database</div>
-          <div class="field-hint">Clears all stored content hashes. Next run will re-process all articles.</div>
-        </div>
-        {#if confirmReset}
-          <div class="inline-row" style="width:auto;gap:8px">
-            <button class="btn btn-danger btn-sm" on:click={() => confirmReset = false}>Confirm Reset</button>
-            <button class="btn btn-secondary btn-sm" on:click={() => confirmReset = false}>Cancel</button>
-          </div>
-        {:else}
-          <button class="btn btn-danger btn-sm" on:click={() => confirmReset = true}>Reset DB</button>
-        {/if}
+    <!-- Quality Thresholds -->
+    <section class="s-card" id="s-quality">
+      <div class="s-head">
+        <div class="s-title">Quality Thresholds</div>
+        <div class="s-desc">Minimum scores required to pass the pipeline</div>
       </div>
-      <div class="field-row">
-        <div>
-          <div class="field-label" style="color:var(--amber)">Pause Pipeline for 7 Days</div>
-          <div class="field-hint">Sets flag to PAUSE and schedules auto-resume. No alert is sent.</div>
-        </div>
-        {#if confirmPause}
-          <div class="inline-row" style="width:auto;gap:8px">
-            <button class="btn btn-sm amber-btn" on:click={() => { setFlag('PAUSE'); confirmPause = false; }}>Confirm Pause</button>
-            <button class="btn btn-secondary btn-sm" on:click={() => confirmPause = false}>Cancel</button>
+      <div class="s-fields">
+        <div class="s-row s-row-slider">
+          <div class="s-slider-top">
+            <div>
+              <div class="s-label">Relevance Minimum</div>
+              <div class="s-hint">Articles below this score are rejected</div>
+            </div>
+            <span class="s-slider-val">{minRelevance.toFixed(1)}</span>
           </div>
-        {:else}
-          <button class="btn btn-sm amber-btn-outline" on:click={() => confirmPause = true}>Pause 7d</button>
-        {/if}
-      </div>
-      <div class="field-row">
-        <div>
-          <div class="field-label" style="color:var(--red)">Delete All Theme Profiles</div>
-          <div class="field-hint">Permanently removes all theme configurations. Cannot be undone.</div>
+          <input type="range" min="1" max="10" step="0.1" bind:value={minRelevance} class="s-slider"/>
+          <div class="s-slider-ends"><span>1.0</span><span>10.0</span></div>
         </div>
-        {#if confirmDelete}
-          <div class="inline-row" style="width:auto;gap:8px">
-            <button class="btn btn-danger btn-sm" on:click={() => confirmDelete = false}>Confirm Delete</button>
-            <button class="btn btn-secondary btn-sm" on:click={() => confirmDelete = false}>Cancel</button>
+        <div class="s-row s-row-slider">
+          <div class="s-slider-top">
+            <div>
+              <div class="s-label">Innovation Minimum</div>
+              <div class="s-hint">Filters out low-originality content</div>
+            </div>
+            <span class="s-slider-val">{minInnovation.toFixed(1)}</span>
           </div>
-        {:else}
-          <button class="btn btn-danger btn-sm" on:click={() => confirmDelete = true}>Delete Themes</button>
-        {/if}
+          <input type="range" min="1" max="10" step="0.1" bind:value={minInnovation} class="s-slider"/>
+          <div class="s-slider-ends"><span>1.0</span><span>10.0</span></div>
+        </div>
       </div>
-    </div>
-  </div>
-</div>
+    </section>
+
+    <!-- Sources -->
+    <section class="s-card" id="s-sources">
+      <div class="s-head">
+        <div class="s-title">Source Management</div>
+        <div class="s-desc">Configure RSS feeds, News APIs, Medium, and scrapers</div>
+      </div>
+      <div class="s-fields">
+        <div class="s-row">
+          <label class="s-label" for="rss-feed">RSS Feed URL</label>
+          <input id="rss-feed" bind:value={rssFeed} class="s-input s-input-wide s-mono"/>
+        </div>
+        <div class="s-row">
+          <label class="s-label" for="news-api-src">News API Key</label>
+          <div class="s-inline">
+            <input id="news-api-src" type="password" bind:value={newsApiKey} class="s-input s-mono"/>
+            <button class="btn btn-secondary btn-sm">Test</button>
+          </div>
+        </div>
+        <div class="s-row">
+          <label class="s-label" for="medium-user">Medium Username</label>
+          <input id="medium-user" bind:value={mediumUser} class="s-input"/>
+        </div>
+        <div class="s-row">
+          <label class="s-label">Website Scrapers</label>
+          <button class="btn btn-secondary btn-sm">Manage →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CMS -->
+    <section class="s-card" id="s-cms">
+      <div class="s-head">
+        <div class="s-title">CMS Connection</div>
+        <div class="s-desc">Endpoint URL, credentials, and connection health</div>
+      </div>
+      <div class="s-fields">
+        <div class="s-row">
+          <label class="s-label" for="cms-ep">Endpoint URL</label>
+          <div class="s-inline">
+            <input id="cms-ep" bind:value={cmsEndpoint} class="s-input s-mono"/>
+            <button class="btn btn-secondary btn-sm" on:click={testCms} disabled={cmsStatus==='testing'}>
+              {cmsStatus==='testing'?'Testing…':'Test'}
+            </button>
+          </div>
+        </div>
+        <div class="s-row">
+          <span class="s-label">Status</span>
+          <span class="cms-pill {cmsStatus}">
+            {#if cmsStatus==='connected'}✓ Connected{:else if cmsStatus==='testing'}⟳ Testing…{:else}✗ Error{/if}
+          </span>
+        </div>
+        <div class="s-row">
+          <label class="s-label" for="cms-k">API Key</label>
+          <div class="s-inline">
+            {#if showCmsKey}
+              <input id="cms-k" type="text"     bind:value={cmsApiKey} class="s-input s-mono"/>
+            {:else}
+              <input id="cms-k" type="password" bind:value={cmsApiKey} class="s-input s-mono"/>
+            {/if}
+            <button class="btn btn-secondary btn-sm" on:click={()=>showCmsKey=!showCmsKey}>{showCmsKey?'Hide':'Show'}</button>
+            <button class="btn btn-secondary btn-sm" on:click={rotateCmsKey}>Rotate</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Notifications -->
+    <section class="s-card" id="s-notifs">
+      <div class="s-head">
+        <div class="s-title">Notifications</div>
+        <div class="s-desc">Choose which events trigger alerts</div>
+      </div>
+      <div class="s-fields">
+        <div class="s-row s-row-toggle">
+          <div>
+            <div class="s-label">Email Alerts</div>
+            <div class="s-hint">Receive all notifications via email</div>
+          </div>
+          <button class="tog" class:tog-on={emailAlerts} on:click={()=>emailAlerts=!emailAlerts} aria-label="toggle"></button>
+        </div>
+        <div class="s-row s-row-toggle">
+          <div>
+            <div class="s-label">Runtime Failure Alerts</div>
+            <div class="s-hint">Immediate notification on pipeline error</div>
+          </div>
+          <button class="tog" class:tog-on={failAlerts} on:click={()=>failAlerts=!failAlerts} aria-label="toggle"></button>
+        </div>
+        <div class="s-row s-row-toggle">
+          <div>
+            <div class="s-label">Weekly Reports</div>
+            <div class="s-hint">Summary email every Monday morning</div>
+          </div>
+          <button class="tog" class:tog-on={weeklyReport} on:click={()=>weeklyReport=!weeklyReport} aria-label="toggle"></button>
+        </div>
+        {#each notifs as n}
+          <div class="s-row s-row-toggle">
+            <div>
+              <div class="s-label">{n.label}</div>
+              <div class="s-hint">{n.hint}</div>
+            </div>
+            <button class="tog" class:tog-on={n.on} on:click={()=>n.on=!n.on} aria-label="toggle"></button>
+          </div>
+        {/each}
+      </div>
+    </section>
+
+    <!-- Users -->
+    <section class="s-card" id="s-users">
+      <div class="s-head">
+        <div class="s-title">User Management</div>
+        <div class="s-desc">Roles, permissions, and access levels</div>
+      </div>
+      <div class="roles-wrap">
+        <table class="roles-table">
+          <thead>
+            <tr><th>Role</th><th>Permissions</th><th class="num">Users</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            {#each roles as r}
+              <tr>
+                <td class="td-bold">{r.name}</td>
+                <td class="td-muted">{r.perms}</td>
+                <td class="num">{r.users}</td>
+                <td>
+                  <div class="act-row">
+                    <button class="act-btn">Edit</button>
+                    <button class="act-btn">View</button>
+                  </div>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+      <button class="btn btn-secondary btn-sm" style="margin-top:14px">+ Invite User</button>
+    </section>
+
+    <!-- Backup -->
+    <section class="s-card" id="s-backup">
+      <div class="s-head">
+        <div class="s-title">Backup &amp; Recovery</div>
+        <div class="s-desc">Automated and manual backup management</div>
+      </div>
+      <div class="s-fields">
+        <div class="s-row s-row-toggle">
+          <div>
+            <div class="s-label">Automatic Backup</div>
+            <div class="s-hint">Scheduled backups of all platform data</div>
+          </div>
+          <button class="tog" class:tog-on={autoBackup} on:click={()=>autoBackup=!autoBackup} aria-label="toggle"></button>
+        </div>
+        <div class="s-row">
+          <label class="s-label" for="backup-freq">Frequency</label>
+          <select id="backup-freq" bind:value={backupFreq} class="s-select">
+            <option value="hourly">Hourly</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+          </select>
+        </div>
+        <div class="s-row">
+          <div>
+            <div class="s-label">Manual Backup</div>
+            <div class="s-hint">Download a full snapshot right now</div>
+          </div>
+          <button class="btn btn-secondary btn-sm">Download</button>
+        </div>
+        <div class="s-row">
+          <div>
+            <div class="s-label">Restore Data</div>
+            <div class="s-hint">Upload a previous backup to restore</div>
+          </div>
+          <input type="file" class="s-file"/>
+        </div>
+      </div>
+    </section>
+
+    <!-- API Keys -->
+    <section class="s-card" id="s-apikeys">
+      <div class="s-head">
+        <div class="s-title">API Keys</div>
+        <div class="s-desc">Third-party service credentials</div>
+      </div>
+      <div class="s-fields">
+        <div class="s-row">
+          <label class="s-label">OpenAI Key</label>
+          <div class="s-inline">
+            {#if showOpenai}
+              <input type="text"     value={openaiKey} class="s-input s-mono"/>
+            {:else}
+              <input type="password" value={openaiKey} class="s-input s-mono"/>
+            {/if}
+            <button class="btn btn-secondary btn-sm" on:click={()=>showOpenai=!showOpenai}>{showOpenai?'Hide':'Show'}</button>
+            <button class="btn btn-secondary btn-sm">Rotate</button>
+          </div>
+        </div>
+        <div class="s-row">
+          <label class="s-label">Gemini Key</label>
+          <div class="s-inline">
+            {#if showGemini}
+              <input type="text"     value={geminiKey} class="s-input s-mono"/>
+            {:else}
+              <input type="password" value={geminiKey} class="s-input s-mono"/>
+            {/if}
+            <button class="btn btn-secondary btn-sm" on:click={()=>showGemini=!showGemini}>{showGemini?'Hide':'Show'}</button>
+            <button class="btn btn-secondary btn-sm">Rotate</button>
+          </div>
+        </div>
+        <div class="s-row">
+          <label class="s-label">News API Key</label>
+          <div class="s-inline">
+            {#if showNews}
+              <input type="text"     value={newsKey} class="s-input s-mono"/>
+            {:else}
+              <input type="password" value={newsKey} class="s-input s-mono"/>
+            {/if}
+            <button class="btn btn-secondary btn-sm" on:click={()=>showNews=!showNews}>{showNews?'Hide':'Show'}</button>
+            <button class="btn btn-secondary btn-sm">Rotate</button>
+          </div>
+        </div>
+        <div class="s-row">
+          <label class="s-label">Custom Key</label>
+          <div class="s-inline">
+            <input type="text" bind:value={customKey} placeholder="Paste key…" class="s-input s-mono"/>
+            <button class="btn btn-secondary btn-sm">Save</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Security -->
+    <section class="s-card" id="s-security">
+      <div class="s-head">
+        <div class="s-title">Security</div>
+        <div class="s-desc">Authentication and access control</div>
+      </div>
+      <div class="s-fields">
+        <div class="s-row s-row-toggle">
+          <div>
+            <div class="s-label">Two-Factor Authentication</div>
+            <div class="s-hint">Require 2FA for all admin logins</div>
+          </div>
+          <button class="tog" class:tog-on={twoFAEnabled} on:click={()=>twoFAEnabled=!twoFAEnabled} aria-label="toggle"></button>
+        </div>
+        <div class="s-row">
+          <div>
+            <div class="s-label">Session Timeout</div>
+            <div class="s-hint">Minutes of inactivity before auto-logout</div>
+          </div>
+          <div class="s-inline" style="width:auto">
+            <input type="number" bind:value={sessionTimeout} min="5" max="480" style="width:72px;text-align:right"/>
+            <span class="s-hint">min</span>
+          </div>
+        </div>
+        <div class="s-row s-row-toggle">
+          <div>
+            <div class="s-label">Login Restrictions</div>
+            <div class="s-hint">Restrict logins to whitelisted IP addresses</div>
+          </div>
+          <button class="tog" class:tog-on={loginRestrict} on:click={()=>loginRestrict=!loginRestrict} aria-label="toggle"></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Content Filters -->
+    <section class="s-card" id="s-content">
+      <div class="s-head">
+        <div class="s-title">Content Filters</div>
+        <div class="s-desc">Deduplication, word counts, and banned terms</div>
+      </div>
+      <div class="s-fields">
+        <div class="s-row">
+          <div>
+            <div class="s-label">Deduplication Window</div>
+            <div class="s-hint">Days to look back for duplicate content</div>
+          </div>
+          <div class="s-inline" style="width:auto">
+            <input type="number" bind:value={dedupWindow} min="1" max="365" style="width:72px;text-align:right"/>
+            <span class="s-hint">days</span>
+          </div>
+        </div>
+        <div class="s-row">
+          <div>
+            <div class="s-label">Word Count Range</div>
+            <div class="s-hint">Articles outside this range are rejected</div>
+          </div>
+          <div class="s-inline" style="width:auto;gap:6px">
+            <span class="s-hint">Min</span>
+            <input type="number" bind:value={minWords} min="100" max="5000" style="width:72px;text-align:right"/>
+            <span class="s-hint">–</span>
+            <span class="s-hint">Max</span>
+            <input type="number" bind:value={maxWords} min="100" max="20000" style="width:80px;text-align:right"/>
+          </div>
+        </div>
+        <div class="s-row s-row-terms">
+          <div class="s-label" style="margin-bottom:10px">Banned Terms</div>
+          <div class="terms-row">
+            {#each bannedTerms as t}
+              <span class="term-pill">{t}<button on:click={()=>removeTerm(t)}>×</button></span>
+            {/each}
+            <div class="s-inline">
+              <input bind:value={newTerm} on:keydown={onTermKey} placeholder="Add term…" style="width:130px"/>
+              <button class="btn btn-secondary btn-sm" on:click={addTerm}>Add</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Danger Zone -->
+    <section class="s-card s-danger" id="s-danger">
+      <div class="s-head">
+        <div class="s-title" style="color:var(--red)">Danger Zone</div>
+        <div class="s-desc">Irreversible actions — proceed with care</div>
+      </div>
+      <div class="s-fields">
+        <div class="s-row">
+          <div>
+            <div class="s-label" style="color:var(--red)">Reset Deduplication Database</div>
+            <div class="s-hint">Clears all stored content hashes. Next run re-processes everything.</div>
+          </div>
+          {#if confirmReset}
+            <div class="s-inline"><button class="btn btn-danger btn-sm" on:click={()=>confirmReset=false}>Confirm</button><button class="btn btn-secondary btn-sm" on:click={()=>confirmReset=false}>Cancel</button></div>
+          {:else}
+            <button class="btn btn-danger btn-sm" on:click={()=>confirmReset=true}>Reset DB</button>
+          {/if}
+        </div>
+        <div class="s-row">
+          <div>
+            <div class="s-label" style="color:var(--amber)">Pause Pipeline for 7 Days</div>
+            <div class="s-hint">Sets flag to PAUSE and schedules auto-resume.</div>
+          </div>
+          {#if confirmPause}
+            <div class="s-inline"><button class="btn btn-sm amber-btn" on:click={()=>{setFlag('PAUSE');confirmPause=false;}}>Confirm</button><button class="btn btn-secondary btn-sm" on:click={()=>confirmPause=false}>Cancel</button></div>
+          {:else}
+            <button class="btn btn-sm amber-btn-outline" on:click={()=>confirmPause=true}>Pause 7d</button>
+          {/if}
+        </div>
+        <div class="s-row">
+          <div>
+            <div class="s-label" style="color:var(--red)">Delete All Theme Profiles</div>
+            <div class="s-hint">Permanently removes all theme configurations. Cannot be undone.</div>
+          </div>
+          {#if confirmDelete}
+            <div class="s-inline"><button class="btn btn-danger btn-sm" on:click={()=>confirmDelete=false}>Confirm</button><button class="btn btn-secondary btn-sm" on:click={()=>confirmDelete=false}>Cancel</button></div>
+          {:else}
+            <button class="btn btn-danger btn-sm" on:click={()=>confirmDelete=true}>Delete</button>
+          {/if}
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /sp-body -->
+</div><!-- /sp-root -->
 
 <!-- Sticky save bar -->
 <div class="save-bar">
-  <span class="save-ts">{lastSaved ? `Last saved at ${fmtSaved(lastSaved)}` : 'Unsaved changes'}</span>
+  <span class="save-ts">{lastSaved ? `Last saved ${fmtSaved(lastSaved)}` : 'Unsaved changes'}</span>
   <button class="btn btn-primary" on:click={save} disabled={saving}>
     {saving ? 'Saving…' : 'Save Settings'}
   </button>
 </div>
 
 <style>
-  .settings-page { max-width: 760px; padding-bottom: 80px; }
-  .page-title { font-family: var(--serif); font-size: 28px; font-weight: 700; color: var(--text-black); margin-bottom: 24px; }
-  .page-divider { border-top: 1px solid var(--divider); margin-bottom: 32px; }
-
-  .section { margin-bottom: 0; border-bottom: 1px solid var(--divider); padding-bottom: 32px; margin-bottom: 32px; }
-  .section:last-child { border-bottom: none; }
-  .section-head { margin-bottom: 20px; }
-  .section-title { font-size: 15px; font-weight: 500; color: var(--text-black); margin-bottom: 3px; }
-  .section-desc  { font-size: 13px; color: var(--text-muted); }
-
-  .fields { display: flex; flex-direction: column; }
-  .field-row {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 24px; padding: 14px 12px; border-bottom: 1px solid var(--divider);
-    border-radius: 6px; margin: 0 -12px;
-    transition: background 0.15s, box-shadow 0.15s;
+  /* ── Layout ── */
+  .sp-root {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 40px;
+    align-items: start;
+    padding-bottom: 100px;
   }
-  .field-row:hover {
+
+  /* ── Sticky side nav ── */
+  .sp-nav {
+    position: sticky;
+    top: 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .sp-nav-title {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-black);
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--divider);
+  }
+  .sp-anchor {
+    text-align: left;
+    padding: 6px 10px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    font-family: var(--sans);
+    border-radius: var(--radius);
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .sp-anchor:hover { color: var(--text-black); background: var(--off-white); border-left-color: var(--divider-strong); }
+  .sp-anchor-active { color: var(--text-black) !important; background: var(--off-white); border-left-color: var(--text-black) !important; font-weight: 600; }
+  .sp-anchor-danger { color: var(--red); }
+  .sp-anchor-danger:hover { background: var(--red-light); border-left-color: var(--red); color: var(--red); }
+  .sp-anchor-danger.sp-anchor-active { background: var(--red-light); border-left-color: var(--red); color: var(--red) !important; }
+
+  /* ── Body ── */
+  .sp-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ── Section card ── */
+  .s-card {
+    background: var(--white);
+    border: 1px solid var(--divider);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .s-danger { border-color: var(--red-light); }
+  .s-danger .s-head { border-left: 3px solid var(--red); }
+
+  .s-head {
+    padding: 16px 20px 14px;
+    border-bottom: 1px solid var(--divider);
     background: var(--off-white);
-    box-shadow: inset 2px 0 0 var(--text-black);
   }
-  .field-row:last-child { border-bottom: none; }
-  .field-label { font-size: 14px; font-weight: 500; color: var(--text-black); }
-  .field-hint  { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
-  .field-narrow { width: 180px; }
+  .s-title { font-size: 14px; font-weight: 600; color: var(--text-black); font-family: var(--sans); margin-bottom: 2px; }
+  .s-desc  { font-size: 12px; color: var(--text-muted); font-family: var(--sans); }
 
-  .inline-row { display: flex; align-items: center; gap: 8px; }
+  /* ── Fields ── */
+  .s-fields { display: flex; flex-direction: column; }
+  .s-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 13px 20px;
+    border-bottom: 1px solid var(--divider);
+    transition: background 0.12s;
+  }
+  .s-row:last-child { border-bottom: none; }
+  .s-row:hover { background: var(--off-white); }
+  .s-row-toggle { align-items: center; }
+  .s-row-slider { flex-direction: column; align-items: stretch; gap: 10px; }
+  .s-row-terms  { flex-direction: column; align-items: flex-start; gap: 0; }
 
-  .cms-pill { font-size: 13px; font-weight: 500; padding: 4px 12px; border-radius: 100px; }
+  .s-label { font-size: 13px; font-weight: 500; color: var(--text-black); font-family: var(--sans); white-space: nowrap; }
+  .s-hint  { font-size: 12px; color: var(--text-muted); font-family: var(--sans); margin-top: 2px; }
+
+  /* ── Inputs ── */
+  .s-input {
+    width: 220px;
+    font-size: 13px;
+    padding: 7px 10px;
+    border: 1px solid var(--divider);
+    border-radius: var(--radius);
+    background: var(--white);
+    color: var(--text-black);
+    font-family: var(--sans);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .s-input:focus { border-color: var(--text-black); }
+  .s-input-wide { width: 300px; }
+  .s-mono { font-family: monospace; font-size: 12px; }
+  .s-select {
+    font-size: 13px;
+    padding: 7px 10px;
+    border: 1px solid var(--divider);
+    border-radius: var(--radius);
+    background: var(--white);
+    color: var(--text-black);
+    font-family: var(--sans);
+    outline: none;
+    cursor: pointer;
+    min-width: 160px;
+  }
+  .s-file { font-size: 12px; color: var(--text-muted); font-family: var(--sans); }
+  .s-inline { display: flex; align-items: center; gap: 8px; }
+
+  /* ── Toggle ── */
+  .tog {
+    width: 40px; height: 22px; border-radius: 99px;
+    background: var(--divider); cursor: pointer;
+    position: relative; transition: background 0.2s;
+    flex-shrink: 0; border: none;
+  }
+  .tog-on { background: var(--green); }
+  .tog::after {
+    content: ''; position: absolute;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #fff; top: 3px; left: 3px;
+    transition: transform 0.2s;
+  }
+  .tog-on::after { transform: translateX(18px); }
+
+  /* ── Slider ── */
+  .s-slider-top { display: flex; align-items: center; justify-content: space-between; }
+  .s-slider-val { font-size: 18px; font-weight: 700; color: var(--green); font-variant-numeric: tabular-nums; font-family: var(--sans); }
+  .s-slider {
+    width: 100%; height: 4px; border-radius: 2px;
+    appearance: none; background: var(--divider);
+    border: none; padding: 0; cursor: pointer;
+    accent-color: var(--green);
+  }
+  .s-slider-ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-hint); margin-top: 4px; font-family: var(--sans); }
+
+  /* ── CMS pill ── */
+  .cms-pill { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 100px; font-family: var(--sans); }
   .cms-pill.connected { background: var(--green-light); color: var(--green); }
   .cms-pill.testing   { background: var(--amber-light); color: var(--amber); }
   .cms-pill.error     { background: var(--red-light);   color: var(--red); }
 
-  /* Toggle */
-  .toggle {
-    width: 40px; height: 22px; border-radius: 99px;
-    background: var(--divider); cursor: pointer;
-    position: relative; transition: background 0.2s; flex-shrink: 0; border: none;
-  }
-  .toggle.on { background: var(--green); }
-  .toggle::after {
-    content: ''; position: absolute;
-    width: 16px; height: 16px; border-radius: 50%;
-    background: #fff; top: 3px; left: 3px; transition: transform 0.2s;
-  }
-  .toggle.on::after { transform: translateX(18px); }
+  /* ── Roles table ── */
+  .roles-wrap { border-top: 1px solid var(--divider); }
+  .roles-table { width: 100%; border-collapse: collapse; font-size: 13px; font-family: var(--sans); }
+  .roles-table th { text-align: left; padding: 8px 20px; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--divider); background: var(--off-white); }
+  .roles-table th.num { text-align: right; }
+  .roles-table td { padding: 11px 20px; border-bottom: 1px solid var(--divider); color: var(--text-body); vertical-align: middle; }
+  .roles-table tr:last-child td { border-bottom: none; }
+  .roles-table tr:hover td { background: var(--off-white); }
+  .roles-table .num { text-align: right; }
+  .td-bold { font-weight: 500; color: var(--text-black); }
+  .td-muted { color: var(--text-muted); }
+  .act-row { display: flex; gap: 4px; }
+  .act-btn { padding: 3px 10px; border: 1px solid var(--divider); background: none; border-radius: var(--radius); font-size: 12px; font-weight: 500; cursor: pointer; color: var(--text-muted); font-family: var(--sans); transition: all 0.12s; }
+  .act-btn:hover { border-color: var(--text-black); color: var(--text-black); }
 
-  /* Sliders */
-  .slider-row { padding: 14px 0; border-bottom: 1px solid var(--divider); }
-  .slider-row:last-child { border-bottom: none; }
-  .slider-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .slider-val { font-size: 20px; font-weight: 700; color: var(--green); font-variant-numeric: tabular-nums; }
-  .slider {
-    width: 100%; height: 4px; border-radius: 2px;
-    appearance: none; background: var(--divider); border: none; padding: 0; cursor: pointer;
-    accent-color: var(--green);
-  }
-  .slider-ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-hint); margin-top: 6px; }
-
-  /* Banned terms */
-  .banned-section { padding: 14px 0 4px; }
-  .terms-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .term-pill {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 13px; padding: 4px 12px; border-radius: 100px;
-    background: #F2F2F2; color: var(--text-body);
-  }
-  .term-pill button {
-    background: none; border: none; cursor: pointer;
-    font-size: 15px; color: var(--text-muted); padding: 0; line-height: 1;
-  }
+  /* ── Banned terms ── */
+  .terms-row { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+  .term-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 3px 10px; border-radius: 100px; background: var(--off-white); color: var(--text-body); border: 1px solid var(--divider); font-family: var(--sans); }
+  .term-pill button { background: none; border: none; cursor: pointer; font-size: 14px; color: var(--text-muted); padding: 0; line-height: 1; }
   .term-pill button:hover { color: var(--red); }
-  .term-add { display: flex; gap: 8px; align-items: center; }
 
-  /* Danger */
-  .danger-section .section-head { border-left: 3px solid var(--red); padding-left: 12px; }
+  /* ── Danger ── */
   .amber-btn { background: var(--amber); color: #fff; border: none; }
   .amber-btn:hover { background: #B45309; }
   .amber-btn-outline { background: var(--white); color: var(--amber); border: 1px solid var(--amber); }
   .amber-btn-outline:hover { background: var(--amber-light); }
 
-  /* Save bar */
+  /* ── Save bar ── */
   .save-bar {
     position: fixed; bottom: 0; left: 0; right: 0;
     display: flex; align-items: center; justify-content: flex-end; gap: 16px;
-    padding: 14px 32px;
-    background: var(--white); border-top: 1px solid var(--divider);
+    padding: 13px 32px;
+    background: var(--white);
+    border-top: 1px solid var(--divider);
     z-index: 90;
   }
-  .save-ts { font-size: 13px; color: var(--text-muted); }
+  .save-ts { font-size: 13px; color: var(--text-muted); font-family: var(--sans); }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .sp-root { grid-template-columns: 1fr; }
+    .sp-nav { position: static; flex-direction: row; flex-wrap: wrap; border-bottom: 1px solid var(--divider); padding-bottom: 12px; gap: 4px; }
+    .sp-nav-title { display: none; }
+    .s-input-wide { width: 100%; }
+  }
 </style>

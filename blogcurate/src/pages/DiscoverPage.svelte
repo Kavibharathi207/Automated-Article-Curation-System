@@ -2,22 +2,77 @@
   import {
     searchQuery, rejectedIds, interestedBlogs, bookmarks,
     rejectBlog, interestBlog, toggleBookmark,
-    currentPage, selectedBlog, articleFrom, addRecentSearch
+    currentPage, selectedBlog, articleFrom, addRecentSearch, interestBlog as markInterested
   } from '../stores/store.js';
   import { mockBlogs, trendingTopics } from '../data/mockData.js';
 
   let discoverTab = 'trending';
-
   let searchInput = '';
   let showSuggestions = false;
   let searching = false;
+  let webResults = [];      // results fetched/simulated from URL or web search
+  let searchMode = 'local'; // 'local' | 'web' | 'url'
+  let urlPreview = null;    // single article parsed from a URL paste
 
   $: searchInput = $searchQuery;
-  $: suggestions = searchInput.trim()
+  $: isUrl = /^https?:\/\//i.test(searchInput.trim());
+  $: suggestions = searchInput.trim() && !isUrl
     ? trendingTopics.filter(t => t.toLowerCase().includes(searchInput.toLowerCase())).slice(0, 6)
     : trendingTopics.slice(0, 6);
 
-  function doSearch(term) {
+  // Simulate fetching a URL — parse domain/path as title/source
+  function simulateFetchUrl(url) {
+    const u = new URL(url);
+    const domain = u.hostname.replace('www.', '');
+    const slug = u.pathname.split('/').filter(Boolean).pop() || '';
+    const title = slug
+      ? slug.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      : `Article from ${domain}`;
+    const category = guessCategory(title + ' ' + domain);
+    return {
+      id: Date.now(),
+      title,
+      source: domain,
+      sourceUrl: url,
+      summary: `This article was fetched from ${domain}. The AI has analysed the content and is ready to curate a blog post based on it.`,
+      image: `https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=600&h=300&fit=crop`,
+      category,
+      readTime: '5 min',
+      tags: [category, domain],
+      lang: 'EN',
+      _fromUrl: true,
+    };
+  }
+
+  // Simulate web search results for a keyword
+  function simulateWebSearch(query) {
+    const q = query.toLowerCase();
+    // First match from mockBlogs
+    const local = mockBlogs.filter(b => {
+      const hay = [b.title, b.summary, b.category, b.source, ...(b.tags||[])].join(' ').toLowerCase();
+      return q.split(/\s+/).filter(Boolean).some(w => hay.includes(w));
+    });
+    // Pad with AI-generated mock web results if fewer than 3 local matches
+    const extras = [
+      { id: 9001, title: `${query}: A Deep Dive into What's Changing in 2025`, source: 'techcrunch.com', sourceUrl: `https://techcrunch.com/search?q=${encodeURIComponent(query)}`, summary: `An in-depth analysis of recent developments around ${query}, covering the key players, technical shifts, and what it means for the industry going forward.`, image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=600&h=300&fit=crop', category: guessCategory(query), readTime: '7 min', tags: [query], lang: 'EN', _fromWeb: true },
+      { id: 9002, title: `The State of ${query} — Industry Report 2025`, source: 'wired.com', sourceUrl: `https://wired.com/search?q=${encodeURIComponent(query)}`, summary: `Wired's comprehensive overview of ${query} examines market trends, emerging technologies, and the companies leading the charge.`, image: 'https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?w=600&h=300&fit=crop', category: guessCategory(query), readTime: '9 min', tags: [query], lang: 'EN', _fromWeb: true },
+      { id: 9003, title: `Why ${query} Matters More Than Ever`, source: 'venturebeat.com', sourceUrl: `https://venturebeat.com/search?q=${encodeURIComponent(query)}`, summary: `VentureBeat explores how ${query} is reshaping expectations, and what businesses need to understand to stay ahead of the curve.`, image: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=600&h=300&fit=crop', category: guessCategory(query), readTime: '6 min', tags: [query], lang: 'EN', _fromWeb: true },
+    ];
+    return [...local, ...extras.slice(0, Math.max(0, 4 - local.length))];
+  }
+
+  function guessCategory(text) {
+    const t = text.toLowerCase();
+    if (/ai|llm|gpt|claude|mistral|machine learning|neural/.test(t)) return 'AI';
+    if (/startup|funding|vc|venture|saas|founder/.test(t)) return 'Startups';
+    if (/health|medical|hospital|clinical/.test(t)) return 'Healthcare';
+    if (/security|cyber|hack|phishing/.test(t)) return 'Security';
+    if (/svelte|react|javascript|web dev|frontend/.test(t)) return 'Web Dev';
+    if (/ev|electric|green|sustainability|climate/.test(t)) return 'Sustainability';
+    return 'Technology';
+  }
+
+  async function doSearch(term) {
     const t = (term || searchInput).trim();
     if (!t) return;
     addRecentSearch(t);
@@ -25,28 +80,36 @@
     showSuggestions = false;
     searchInput = t;
     searching = true;
-    setTimeout(() => searching = false, 600);
+    urlPreview = null;
+    webResults = [];
+
+    await new Promise(r => setTimeout(r, 800)); // simulate network delay
+
+    if (/^https?:\/\//i.test(t)) {
+      searchMode = 'url';
+      try { urlPreview = simulateFetchUrl(t); }
+      catch { urlPreview = null; }
+    } else {
+      searchMode = 'web';
+      webResults = simulateWebSearch(t);
+    }
+    searching = false;
   }
-  function clearSearch() { searchQuery.set(''); searchInput = ''; }
+
+  function clearSearch() {
+    searchQuery.set(''); searchInput = '';
+    webResults = []; urlPreview = null; searchMode = 'local';
+  }
   function onKey(e) {
     if (e.key === 'Enter') doSearch();
     if (e.key === 'Escape') showSuggestions = false;
   }
 
-  function matchesQuery(blog, query) {
-    if (!query) return false;
-    const q = query.toLowerCase();
-    const hay = [blog.title, blog.summary, blog.category, blog.source, ...(blog.tags || [])].join(' ').toLowerCase();
-    return q.split(/\s+/).filter(Boolean).every(w => hay.includes(w));
-  }
-
-  $: results = $searchQuery ? mockBlogs.filter(b => matchesQuery(b, $searchQuery)) : [];
   $: interestedIds = $interestedBlogs.map(b => b.id);
 
   const trendingIds   = [1, 7, 11, 18, 14];
   const editorPickIds = [8, 5, 17, 13, 2];
   const evergreenIds  = [4, 9, 20, 3, 19];
-
   $: featuredTrending    = mockBlogs.filter(b => trendingIds.includes(b.id));
   $: featuredEditorPicks = mockBlogs.filter(b => editorPickIds.includes(b.id));
   $: featuredEvergreen   = mockBlogs.filter(b => evergreenIds.includes(b.id));
@@ -65,6 +128,11 @@
   function openArticle(blog) {
     selectedBlog.set(blog); articleFrom.set('discover');
     currentPage.set('article'); window.scrollTo(0, 0);
+  }
+  function curateNow(blog) {
+    interestBlog(blog);
+    selectedBlog.set(blog);
+    currentPage.set('preview');
   }
 
   const sections = [
@@ -86,13 +154,27 @@
 
   <div class="search-wrap">
     <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <div class="search-bar" on:click={() => showSuggestions = true}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-      <input bind:value={searchInput} placeholder="Search articles, topics, sources…" on:keydown={onKey} on:focus={() => showSuggestions = true} on:blur={() => setTimeout(() => showSuggestions = false, 150)} />
+    <div class="search-bar" class:url-mode={isUrl} on:click={() => showSuggestions = true}>
+      {#if isUrl}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+      {:else}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      {/if}
+      <input
+        bind:value={searchInput}
+        placeholder="Search keywords or paste a URL (https://…)"
+        on:keydown={onKey}
+        on:focus={() => showSuggestions = true}
+        on:blur={() => setTimeout(() => showSuggestions = false, 150)}
+      />
       {#if searchInput}<button class="search-clear" on:click={clearSearch}>✕</button>{/if}
-      <button class="search-btn" on:click={() => doSearch()}>Search</button>
+      <button class="search-btn" on:click={() => doSearch()}>
+        {isUrl ? 'Fetch & Curate' : 'Search'}
+      </button>
     </div>
-    {#if showSuggestions}
+    {#if isUrl}
+      <div class="url-hint">🔗 URL detected — we'll fetch this article and prepare it for AI curation.</div>
+    {:else if showSuggestions}
       <div class="suggestions-drop">
         <p class="suggestions-label">Suggested topics</p>
         {#each suggestions as s}
@@ -107,22 +189,76 @@
   </div>
 
   {#if $searchQuery}
-    <!-- SEARCH RESULTS -->
     <section class="results-section">
       <div class="results-header">
-        <span class="results-title">Results for "<strong>{$searchQuery}</strong>"</span>
-        <button class="results-clear" on:click={clearSearch}>Clear search</button>
+        <div class="results-header-left">
+          {#if searchMode === 'url'}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+            <span class="results-title">Article fetched from <strong>{$searchQuery}</strong></span>
+          {:else}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <span class="results-title">Web results for "<strong>{$searchQuery}</strong>"</span>
+          {/if}
+        </div>
+        <button class="results-clear" on:click={clearSearch}>Clear</button>
       </div>
+
       {#if searching}
-        <div class="loading-row"><div class="spinner"></div><span>Searching…</span></div>
-      {:else if results.length === 0}
+        <div class="loading-row">
+          <div class="spinner"></div>
+          <span>{searchMode === 'url' ? 'Fetching article and analysing content…' : 'Searching the web…'}</span>
+        </div>
+
+      <!-- URL mode: single article fetched -->
+      {:else if searchMode === 'url'}
+        {#if !urlPreview}
+          <div class="empty-state">
+            <p class="empty-title">Could not fetch that URL</p>
+            <p class="empty-sub">Make sure the URL is correct, or try pasting keywords instead.</p>
+          </div>
+        {:else}
+          <div class="url-result-card">
+            <img src={urlPreview.image} alt="" class="url-result-img" />
+            <div class="url-result-body">
+              <div class="url-result-meta">
+                <span class="result-source">{urlPreview.source}</span>
+                <span class="result-dot">·</span>
+                <span class="result-read">{urlPreview.readTime} read</span>
+                <span class="result-category">{urlPreview.category}</span>
+                <a href={urlPreview.sourceUrl} target="_blank" rel="noopener" class="url-ext-link">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  Open original
+                </a>
+              </div>
+              <h3 class="result-title">{urlPreview.title}</h3>
+              <p class="result-summary">{urlPreview.summary}</p>
+              <div class="ai-curation-box">
+                <div class="ai-curation-icon">✨</div>
+                <div>
+                  <p class="ai-curation-title">Ready to curate</p>
+                  <p class="ai-curation-sub">The AI has analysed this article. Click below to generate a curated blog post from it.</p>
+                </div>
+              </div>
+              <div class="url-result-actions">
+                <button class="ra-btn generate" on:click={() => curateNow(urlPreview)}>✨ Generate blog now</button>
+                <button class="ra-btn" on:click={() => interestBlog(urlPreview)}>👍 Mark interested</button>
+                <button class="ra-icon-btn" on:click={() => toggleBookmark(urlPreview.id)} title="Bookmark">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        {/if}
+
+      <!-- Web/keyword search results -->
+      {:else if webResults.length === 0}
         <div class="empty-state">
-          <p class="empty-title">No results for "{$searchQuery}"</p>
-          <p class="empty-sub">Try a broader term or pick a topic below.</p>
+          <p class="empty-title">No results found</p>
+          <p class="empty-sub">Try different keywords or paste a direct article URL.</p>
         </div>
       {:else}
         <div class="result-list">
-          {#each results as blog}
+          {#each webResults as blog}
             {@const isRejected   = $rejectedIds.includes(blog.id)}
             {@const isInterested = interestedIds.includes(blog.id)}
             {@const isBookmarked = $bookmarks.includes(Number(blog.id))}
@@ -133,7 +269,14 @@
                   <span class="result-dot">·</span>
                   <span class="result-read">{blog.readTime} read</span>
                   <span class="result-category">{blog.category}</span>
-                  {#if blog.lang === 'FR'}<span class="result-lang">FR</span>{/if}
+                  {#if blog._fromWeb}
+                    <span class="web-badge">🌐 Web</span>
+                  {/if}
+                  {#if blog.sourceUrl && blog.sourceUrl !== '#'}
+                    <a href={blog.sourceUrl} target="_blank" rel="noopener" class="url-ext-link">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    </a>
+                  {/if}
                 </div>
                 <!-- svelte-ignore a11y-click-events-have-key-events -->
                 <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
@@ -142,12 +285,13 @@
                 <div class="result-actions">
                   {#if isInterested}
                     <button class="ra-btn interested-active" on:click={() => animateInterest(blog)}>👍 Interested</button>
-                    <button class="ra-btn generate" on:click={() => { selectedBlog.set(blog); currentPage.set('preview'); }}>✨ Generate</button>
+                    <button class="ra-btn generate" on:click={() => curateNow(blog)}>✨ Generate</button>
                   {:else if !isRejected}
                     <button class="ra-btn" on:click={() => animateInterest(blog)}>👍 Interested</button>
+                    <button class="ra-btn generate" on:click={() => curateNow(blog)}>✨ Curate</button>
                     <button class="ra-btn" on:click={() => animateReject(blog.id)}>👎 Skip</button>
                   {/if}
-                  <button class="ra-icon-btn" class:bk-active={isBookmarked} on:click={() => toggleBookmark(blog.id)} title={isBookmarked ? 'Remove bookmark' : 'Bookmark'}>
+                  <button class="ra-icon-btn" class:bk-active={isBookmarked} on:click={() => toggleBookmark(blog.id)} title="Bookmark">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill={isBookmarked ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
                   </button>
                 </div>
@@ -367,9 +511,46 @@
 
   /* Results */
   .results-section { margin-bottom: 48px; }
-  .results-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 16px; border-bottom: 1px solid var(--divider); margin-bottom: 4px; }
-  .results-title { font-size: 16px; color: var(--text-muted); }
+  .results-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 16px; border-bottom: 1px solid var(--divider); margin-bottom: 16px; }
+  .results-header-left { display: flex; align-items: center; gap: 8px; }
+  .results-title { font-size: 15px; color: var(--text-muted); }
   .results-title strong { color: var(--text-black); }
+  .search-bar.url-mode:focus-within { border-color: #6a1b9a; box-shadow: 0 0 0 3px rgba(106,27,154,0.08); }
+  .url-hint {
+    margin-top: 8px; font-size: 13px; color: #6a1b9a;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .url-ext-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: var(--text-muted); text-decoration: none;
+    transition: color 0.12s;
+  }
+  .url-ext-link:hover { color: var(--text-black); }
+  .web-badge {
+    font-size: 10px; font-weight: 600; padding: 1px 6px;
+    background: #eef2ff; border: 1px solid #c7d2fe; color: #4338ca;
+    border-radius: 100px;
+  }
+
+  /* URL single-result card */
+  .url-result-card {
+    display: flex; gap: 24px; align-items: flex-start;
+    padding: 28px; border: 1px solid var(--divider); border-radius: 10px;
+    background: var(--white); margin-top: 8px;
+  }
+  .url-result-img { width: 180px; height: 120px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+  .url-result-body { flex: 1; min-width: 0; }
+  .url-result-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .url-result-actions { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+
+  .ai-curation-box {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: #faf5ff; border: 1px solid #e9d5ff;
+    border-radius: 8px; padding: 14px 16px; margin-top: 16px;
+  }
+  .ai-curation-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  .ai-curation-title { font-size: 14px; font-weight: 600; color: #6b21a8; margin-bottom: 3px; }
+  .ai-curation-sub { font-size: 13px; color: #7c3aed; line-height: 1.5; }
   .results-clear { background: none; border: none; cursor: pointer; font-size: 13px; color: var(--text-muted); font-family: var(--sans); padding: 0; transition: color 0.15s; }
   .results-clear:hover { color: var(--text-black); }
   .loading-row { display: flex; align-items: center; gap: 12px; padding: 32px 0; font-size: 14px; color: var(--text-muted); }

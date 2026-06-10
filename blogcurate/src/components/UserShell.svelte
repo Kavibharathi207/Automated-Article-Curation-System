@@ -17,13 +17,13 @@
   import BlogDetailPage  from '../pages/BlogDetailPage.svelte';
   import OnboardingModal from './OnboardingModal.svelte';
 
-  let expanded     = false;
+  let expanded     = true;
   let showNotif    = false;
   let showUserMenu = false;
   let showSearch   = false;
   let searchInput  = '';
 
-  $: showOnboarding = $user?.isNew ?? false;
+  let showOnboarding = $user?.isNew ?? false;
 
   const nav = [
     { page: 'home',      label: 'Home',
@@ -218,10 +218,7 @@
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
               Dashboard
             </button>
-            <button class="drop-item" on:click={() => appMode.set('admin')}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              Admin Panel
-            </button>
+
             <button class="drop-item" on:click={() => appMode.set('landing')}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
               Landing Page
@@ -549,6 +546,12 @@
     transition: padding-left 0.3s ease-in-out;
   }
   .shell.expanded .page-area { padding-left: 260px; }
+
+  /* ─── Page content inner wrapper ── */
+  .page-area > :global(*) {
+    padding: 40px 48px;
+    max-width: 1200px;
+  }
 
   /* ─── Responsive ─────────────────────────────────────────── */
   @media (max-width: 904px) {

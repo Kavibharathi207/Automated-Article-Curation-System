@@ -15,6 +15,7 @@
     <button class="nav-link" class:active={page === 'membership'} on:click={() => go('membership')}>Membership</button>
     <button class="nav-link" on:click={() => openAuth('write')}>Write</button>
     <button class="nav-link" on:click={() => openAuth('signin')}>Sign in</button>
+    <button class="nav-link" on:click={() => appMode.set('admin')}>Admin</button>
     <button class="nav-cta" on:click={openSignup}>Get started</button>
   </nav>
 </header>

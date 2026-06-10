@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { currentPage, publishTime, timezone, schedulePost, searchQuery, bilingual, interestedBlogs } from '../stores/store.js';
+  import { currentPage, publishTime, timezone, schedulePost, searchQuery, bilingual, interestedBlogs, selectedBlog } from '../stores/store.js';
   import { mockGeneratedBlog } from '../data/mockData.js';
 
   let loading      = true;
@@ -8,11 +8,10 @@
   let editing      = false;
   let published    = false;
   let copied       = false;
-  let typingDone   = false;
+  let typingDone   = true;
   let displayedTitle = '';
   let countdown    = { h: 0, m: 0, s: 0 };
   let interval;
-  let typingInterval;
 
   let relevanceScore  = 8.7;
   let innovationScore = 9.2;
@@ -24,27 +23,26 @@
   $: wordCount = blog.content.filter(b => b.type === 'p').map(b => b.text).join(' ').split(/\s+/).filter(Boolean).length;
   $: wcStatus = wordCount >= 90 && wordCount <= 110 ? 'ok' : wordCount < 90 ? 'low' : 'high';
 
-  let blog = { ...mockGeneratedBlog, content: mockGeneratedBlog.content.map(b => ({ ...b })) };
+  const source = $selectedBlog ?? mockGeneratedBlog;
+  let blog = {
+    ...mockGeneratedBlog,
+    title: source.title ?? mockGeneratedBlog.title,
+    category: source.category ?? mockGeneratedBlog.category,
+    tags: source.tags ?? mockGeneratedBlog.tags,
+    coverImage: source.image ?? source.imageUrl ?? mockGeneratedBlog.coverImage,
+    content: mockGeneratedBlog.content.map(b => ({ ...b })),
+  };
   let editTitle   = blog.title;
   let editContent = blog.content.map(b => b.type === 'h2' ? `## ${b.text}` : b.text).join('\n\n');
 
-  function startTyping() {
-    displayedTitle = '';
-    typingDone = false;
-    let i = 0;
-    clearInterval(typingInterval);
-    typingInterval = setInterval(() => {
-      displayedTitle = blog.title.slice(0, ++i);
-      if (i >= blog.title.length) { clearInterval(typingInterval); typingDone = true; }
-    }, 28);
-  }
-
-  onMount(() => {
-    setTimeout(() => { loading = false; startTyping(); }, 300);
+  onMount(async () => {
+    await new Promise(r => setTimeout(r, 800));
+    loading = false;
+    displayedTitle = blog.title;
     interval = setInterval(tick, 1000);
     tick();
   });
-  onDestroy(() => { clearInterval(interval); clearInterval(typingInterval); });
+  onDestroy(() => { clearInterval(interval); });
 
   function tick() {
     const [hh, mm] = $publishTime.split(':').map(Number);
@@ -88,14 +86,13 @@
 
   async function regenerate() {
     regenerating = true; editing = false;
-    await new Promise(r => setTimeout(r, 300));
     const v = regenerateVariants[variantIndex % regenerateVariants.length];
     variantIndex++;
     blog = { ...blog, title: v.title, content: v.content, qualityScore: +(8 + Math.random()).toFixed(1), wordCount: 380 + Math.floor(Math.random() * 80) };
     editTitle   = blog.title;
     editContent = blog.content.map(b => b.type === 'h2' ? `## ${b.text}` : b.text).join('\n\n');
+    displayedTitle = blog.title;
     regenerating = false;
-    startTyping();
   }
 
   function startEdit() {
@@ -147,6 +144,8 @@
   }
 
   $: readingTime = Math.max(1, Math.ceil(wordCount / 200));
+  /** @param {number} n */
+  function pad(n) { return String(n).padStart(2, '0'); }
 
   function handleSchedule() {
     const [hh, mm] = $publishTime.split(':').map(Number);
@@ -163,7 +162,7 @@
   {#if loading || regenerating}
     <div class="loading-state">
       <div class="spinner"></div>
-      <p class="loading-text">{regenerating ? 'Regenerating with Mistral AI…' : 'Mistral AI is generating your blog…'}</p>
+      <p class="loading-text">{regenerating ? 'Regenerating with Mistral AI…' : 'Generating your blog with Mistral AI…'}</p>
     </div>
 
   {:else if published}

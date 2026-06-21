@@ -27,6 +27,96 @@ BlogCurate is a modern, full-stack blog curation system built to aggregate, orga
 - 📱 **Responsive Design** — Optimized for desktop, tablet, and mobile
 
 ---
+## 📸 Screenshots
+
+# 🏠 Landing Page
+
+### Landing Page - Hero Section
+
+<img src="https://github.com/user-attachments/assets/d9523467-0991-4a04-b948-b6db309ab610" />
+
+### Landing Page - Features Section
+
+<img src="https://github.com/user-attachments/assets/c177f2ac-8785-439d-89ce-1d3c909e4d52" />
+
+---
+
+# 👤 User Panel
+
+### Home Page
+
+<img src="https://github.com/user-attachments/assets/05d43e9f-b8b0-4c19-a2a3-e460a16c5eda" />
+
+<img src="https://github.com/user-attachments/assets/ea68ac5b-936f-4f96-8eb0-b2dd341fda1d" />
+
+### Discover
+
+<img src="https://github.com/user-attachments/assets/4845723e-5c2e-4004-8f28-44813df4cba9" />
+
+<img src="https://github.com/user-attachments/assets/1c0e16ed-24d7-4795-a77a-fce55f0757cf" />
+
+<img src="https://github.com/user-attachments/assets/58f63cb4-786b-4067-bb6c-5ee4d679ee93" />
+
+### Find Blogs using URL / Keywords
+
+<img src="https://github.com/user-attachments/assets/671eccbb-4403-4aea-bc73-e6380c5b1107" />
+
+
+### Stories
+<img src="https://github.com/user-attachments/assets/dd6f8ea4-4624-43af-aecf-185baa6deeb0" />
+
+<img src="https://github.com/user-attachments/assets/be4bf8d5-abe4-40b1-9137-bfdab6acf98f" />
+
+### Status
+
+<img src="https://github.com/user-attachments/assets/a7dcbccb-31ad-446a-a6a0-17a35b141506" />
+
+### Following
+
+<img src="https://github.com/user-attachments/assets/015f2488-7fee-41b0-bae5-4aea5c1d42f9" />
+
+### Dashboard
+
+<img src="https://github.com/user-attachments/assets/f2e702d5-b759-483e-93c6-ccb9e0798abe" />
+
+### Settings
+
+<img src="https://github.com/user-attachments/assets/c2b995f7-b8fd-41eb-bb82-2ec650e8a117" />
+
+<img src="https://github.com/user-attachments/assets/310a9dd5-9539-42e0-877d-797b414e5499" />
+
+---
+
+# 🛠️ Admin Panel
+
+### Dashboard
+
+<img src="https://github.com/user-attachments/assets/5f80b32e-6880-45ef-922a-2e3ea7259067" />
+
+### Run History
+
+<img src="https://github.com/user-attachments/assets/ea2fc402-9a84-4b2e-ad7b-70e3175aec5d" />
+
+<img src="https://github.com/user-attachments/assets/0730c104-4514-4c89-8e6a-43b5fb7888bc" />
+
+### Articles
+
+<img src="https://github.com/user-attachments/assets/fed9462c-ce4e-4f8f-ac4f-4c0feafbba29" />
+
+### Themes
+
+<img src="https://github.com/user-attachments/assets/2699bfca-60d0-4b6f-983d-545185b068ec" />
+
+### Profiles
+
+<img src="https://github.com/user-attachments/assets/773b47a4-2855-4dbd-8d1d-07afd297629e" />
+
+<img src="https://github.com/user-attachments/assets/a5bdaa0b-cde6-4f63-b5e7-7876a8eb3a28" />
+
+### Settings
+
+<img src="https://github.com/user-attachments/assets/54ec5b2d-988b-490e-9d62-91699ed14178" />
+
 
 ## 🗂️ Project Structure
 

@@ -160,28 +160,15 @@ Curation/
 
 ## 🚀 Getting Started
 
+> **Note:** This repository contains the **frontend only** (Svelte + Vite). The backend (Spring Boot), database (PostgreSQL), cache (Redis), and AI pipeline (Ollama) are maintained separately by the backend team. Full-stack execution requires the complete backend setup.
+
 ### Prerequisites
 
-- Java 17+
 - Node.js 20+
-- Maven 3.9+
-- Docker Desktop
-- [Ollama](https://ollama.com) installed locally
+- npm v9+
 
-### Running the Project
+### Running the Frontend
 
-**Terminal 1 — Database**
-```bash
-docker compose up -d postgres
-```
-
-**Terminal 2 — Backend**
-```bash
-mvn spring-boot:run "-Dskip.frontend=true"
-```
-Runs on → [http://localhost:8080](http://localhost:8080)
-
-**Terminal 3 — Frontend**
 ```bash
 cd blogcurate
 npm install
